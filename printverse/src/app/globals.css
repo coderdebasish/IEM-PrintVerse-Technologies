@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+/* ── Brand Design Tokens ─────────────────────────────────────────────────── */
+@theme inline {
+  /* Colors */
+  --color-primary:       #0B1F4D;
+  --color-primary-dark:  #071435;
+  --color-primary-light: #1a3a7a;
+  --color-accent:        #C41E2C;
+  --color-accent-dark:   #a01824;
+  --color-accent-light:  #e8354a;
+  --color-gold:          #D4A017;
+  --color-gold-light:    #f0c040;
+  --color-off-white:     #f8f9fb;
+  --color-surface:       #ffffff;
+  --color-border:        #e2e8f0;
+  --color-muted:         #64748b;
+  --color-success:       #16a34a;
+  --color-warning:       #d97706;
+  --color-error:         #dc2626;
+
+  /* Typography */
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+
+  /* Border radius */
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+
+  /* Shadows */
+  --shadow-card: 0 4px 24px rgba(11, 31, 77, 0.08);
+  --shadow-card-hover: 0 8px 40px rgba(11, 31, 77, 0.14);
+  --shadow-nav: 0 1px 0 0 #e2e8f0, 0 2px 8px rgba(11, 31, 77, 0.06);
+}
+
+/* ── Base Reset ───────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: #f8f9fb;
+  color: #0B1F4D;
+  font-family: var(--font-sans);
+  line-height: 1.6;
+}
+
+/* ── Typography Scale ─────────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.2;
+  color: #0B1F4D;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Focus ring ────────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid #C41E2C;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Animations ───────────────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; max-height: 0; }
+  to   { opacity: 1; max-height: 800px; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(196, 30, 44, 0.3); }
+  50%       { box-shadow: 0 0 0 8px rgba(196, 30, 44, 0); }
+}
+
+.animate-fade-in  { animation: fadeIn 0.4s ease-out forwards; }
+.animate-slide-down { animation: slideDown 0.3s ease-out forwards; }
+.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+/* ── Card hover lift ─────────────────────────────────────────────────────── */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* ── Gradient backgrounds ────────────────────────────────────────────────── */
+.bg-hero-gradient {
+  background: linear-gradient(135deg, #0B1F4D 0%, #1a3a7a 50%, #071435 100%);
+}
+
+.bg-pricing-gradient {
+  background: linear-gradient(135deg, #C41E2C 0%, #a01824 100%);
+}
+
+/* ── Section spacing ─────────────────────────────────────────────────────── */
+.section-padding { padding-top: 5rem; padding-bottom: 5rem; }
+
+/* ── Ribbon badge ────────────────────────────────────────────────────────── */
+.ribbon-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(90deg, #D4A017, #f0c040, #D4A017);
+  color: #0B1F4D;
+  font-weight: 800;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.35rem 1.25rem;
+  border-radius: 9999px;
+  box-shadow: 0 2px 8px rgba(212, 160, 23, 0.4);
+}
+
+/* ── Status badge colors ──────────────────────────────────────────────────── */
+.status-Requested        { background: #dbeafe; color: #1d4ed8; }
+.status-Contacted        { background: #e0e7ff; color: #4338ca; }
+.status-Quoted           { background: #fef3c7; color: #d97706; }
+.status-Payment-Pending  { background: #fff7ed; color: #c2410c; }
+.status-Payment-Received { background: #dcfce7; color: #15803d; }
+.status-Paid             { background: #dcfce7; color: #15803d; }
+.status-Confirmed        { background: #d1fae5; color: #065f46; }
+.status-Printing         { background: #e0f2fe; color: #0369a1; }
+.status-Invoice-Sent     { background: #f0fdf4; color: #166534; }
+.status-Shipped          { background: #f3e8ff; color: #7e22ce; }
+.status-Completed        { background: #f0fdf4; color: #14532d; }
+.status-Cancelled        { background: #fee2e2; color: #991b1b; }
