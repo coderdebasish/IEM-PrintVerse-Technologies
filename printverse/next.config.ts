@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Allow up to 10 MB for server action form submissions (product image uploads)
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
+  },
   // @react-pdf/renderer uses Node.js APIs and must not be bundled for the client
   serverExternalPackages: ["@react-pdf/renderer"],
 };

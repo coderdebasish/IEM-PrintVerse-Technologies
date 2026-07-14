@@ -19,9 +19,13 @@ import {
 } from "./actions";
 import type { Order, OrderStatus } from "@/types";
 
-const ALL_STATUSES: OrderStatus[] = [
-  "Requested","Contacted","Quoted","Payment Pending","Payment Received",
-  "Paid","Confirmed","Printing","Invoice Sent","Shipped","Completed","Cancelled",
+const QUOTE_STATUSES: OrderStatus[] = [
+  "Requested","Contacted","Quoted","Payment Pending","Paid",
+  "Printing","Invoice Sent","Shipped","Completed","Cancelled",
+];
+const PURCHASE_STATUSES: OrderStatus[] = [
+  "Requested","Payment Pending","Payment Received","Confirmed",
+  "Printing","Invoice Sent","Shipped","Completed","Cancelled",
 ];
 
 type OrderWithProduct = Order & {
@@ -230,7 +234,7 @@ export function OrderDetailClient({ order: initialOrder }: { order: OrderWithPro
               id="admin-status-select"
               className="w-full px-3 py-2 rounded-xl border border-[#e2e8f0] text-sm text-[#0B1F4D] focus:outline-none focus:ring-2 focus:ring-[#C41E2C]/30 bg-white mb-3"
             >
-              {ALL_STATUSES.map((s) => (
+              {(isQuote ? QUOTE_STATUSES : PURCHASE_STATUSES).map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
@@ -316,10 +320,30 @@ export function OrderDetailClient({ order: initialOrder }: { order: OrderWithPro
             </Card>
           )}
 
+          {/* Purchase: generate payment link if not yet created */}
+          {!isQuote && !order.payment_link && (
+            <Card title="Payment Link">
+              <p className="text-xs text-slate-400 mb-3 leading-relaxed">
+                Razorpay link not generated yet. Once your merchant account is approved, generate and share with the customer.
+              </p>
+              <Button
+                onClick={handleGenLink}
+                loading={loading === "link"}
+                variant="accent"
+                size="sm"
+                className="w-full"
+                icon={<DollarSign className="h-4 w-4" />}
+                id="generate-payment-link-purchase-btn"
+              >
+                Generate Payment Link
+              </Button>
+            </Card>
+          )}
+
           {/* Purchase: confirm via call + invoice */}
           {!isQuote && (
             <>
-              <Card title="Confirmation">
+              <Card title="Confirmation Call">
                 {order.confirmed_via_call ? (
                   <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
                     <CheckCircle2 className="h-5 w-5" />
@@ -331,23 +355,22 @@ export function OrderDetailClient({ order: initialOrder }: { order: OrderWithPro
                     )}
                   </div>
                 ) : (
-                  <Button
-                    onClick={handleConfirmCall}
-                    loading={loading === "confirm"}
-                    disabled={order.status !== "Payment Received"}
-                    variant="primary"
-                    size="sm"
-                    className="w-full"
-                    icon={<Phone className="h-4 w-4" />}
-                    id="mark-confirmed-btn"
-                  >
-                    Mark Confirmed via Call
-                  </Button>
-                )}
-                {!order.confirmed_via_call && order.status !== "Payment Received" && (
-                  <p className="text-xs text-slate-400 mt-2">
-                    Available after payment is received.
-                  </p>
+                  <>
+                    <Button
+                      onClick={handleConfirmCall}
+                      loading={loading === "confirm"}
+                      variant="primary"
+                      size="sm"
+                      className="w-full"
+                      icon={<Phone className="h-4 w-4" />}
+                      id="mark-confirmed-btn"
+                    >
+                      Mark Confirmed via Call
+                    </Button>
+                    <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                      Call the customer to verify their order before printing. Tap above once confirmed.
+                    </p>
+                  </>
                 )}
               </Card>
 
@@ -376,7 +399,7 @@ export function OrderDetailClient({ order: initialOrder }: { order: OrderWithPro
                 )}
                 {!order.confirmed_via_call && (
                   <p className="text-xs text-[#C41E2C] font-semibold mt-2">
-                    ⚠ Must confirm via call first
+                    ⚠ Confirm via call first
                   </p>
                 )}
               </Card>

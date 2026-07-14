@@ -48,8 +48,10 @@ function ProductForm({
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
+    // MUST capture FormData synchronously before any state updates
+    // (setLoading causes re-render which can nullify e.currentTarget)
     const formData = new FormData(e.currentTarget);
+    setLoading(true);
 
     try {
       const res = existing
