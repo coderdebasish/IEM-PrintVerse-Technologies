@@ -149,9 +149,8 @@ export function InteractiveHero() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-36 flex flex-col items-center text-center">
         {/* Ribbon Badge */}
         <div
-          className={`ribbon-badge mb-8 transition-all duration-700 delay-100 ${
-            isMounted ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
-          }`}
+          className="ribbon-badge mb-8 animate-fade-in"
+          style={{ animationDelay: "100ms", animationFillMode: "both" }}
         >
           <Layers className="h-3.5 w-3.5" />
           Powered by IIFR Lab · IEM Kolkata
@@ -159,9 +158,8 @@ export function InteractiveHero() {
 
         {/* Title */}
         <h1
-          className={`text-4xl sm:text-5xl lg:text-6xl font-black leading-tight tracking-tight text-white max-w-4xl transition-all duration-700 delay-200 ${
-            isMounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
-          }`}
+          className="text-4xl sm:text-5xl lg:text-6xl font-black leading-tight tracking-tight text-white max-w-4xl animate-fade-in"
+          style={{ animationDelay: "250ms", animationFillMode: "both" }}
         >
           Where Every Idea{" "}
           <span className="relative inline-block text-[#D4A017] group">
@@ -177,9 +175,8 @@ export function InteractiveHero() {
 
         {/* Description text */}
         <p
-          className={`mt-6 text-lg sm:text-xl text-slate-300 max-w-2xl leading-relaxed transition-all duration-700 delay-300 ${
-            isMounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
-          }`}
+          className="mt-6 text-lg sm:text-xl text-slate-300 max-w-2xl leading-relaxed animate-fade-in"
+          style={{ animationDelay: "400ms", animationFillMode: "both" }}
         >
           Professional 3D printing at a flat{" "}
           <span className="text-[#D4A017] font-bold">₹4/gram</span>. Upload your
@@ -188,9 +185,8 @@ export function InteractiveHero() {
 
         {/* CTA Buttons */}
         <div
-          className={`mt-10 flex flex-col sm:flex-row gap-4 transition-all duration-700 delay-400 ${
-            isMounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
-          }`}
+          className="mt-10 flex flex-col sm:flex-row gap-4 animate-fade-in"
+          style={{ animationDelay: "550ms", animationFillMode: "both" }}
         >
           <Link
             href="/quote"
@@ -212,9 +208,8 @@ export function InteractiveHero() {
 
         {/* Trust stats */}
         <div
-          className={`mt-16 grid grid-cols-3 gap-8 sm:gap-16 text-center transition-all duration-700 delay-500 ${
-            isMounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
-          }`}
+          className="mt-16 grid grid-cols-3 gap-8 sm:gap-16 text-center animate-fade-in"
+          style={{ animationDelay: "700ms", animationFillMode: "both" }}
         >
           {[
             { val: "₹4", label: "Per Gram" },
