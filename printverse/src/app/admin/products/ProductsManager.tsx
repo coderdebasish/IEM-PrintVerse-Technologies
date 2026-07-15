@@ -36,21 +36,86 @@ function ProductForm({
   onCancel: () => void;
 }) {
   const [loading, setLoading] = useState(false);
-  const [preview, setPreview] = useState<string | null>(existing?.image_url ?? null);
+  const [selectedCats, setSelectedCats] = useState<ProductCategory[]>(
+    existing?.categories ?? (existing?.category ? [existing.category] : [])
+  );
+  
+  // Existing uploaded images list
+  const [existingImages, setExistingImages] = useState<string[]>(
+    existing?.image_urls ?? (existing?.image_url ? [existing.image_url] : [])
+  );
+  
+  // Newly selected files for upload
+  const [newFiles, setNewFiles] = useState<{ file: File; preview: string }[]>([]);
+  
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    if (f.size > 10 * 1024 * 1024) { toast.error("Image too large — max 10 MB."); return; }
-    setPreview(URL.createObjectURL(f));
+    const files = Array.from(e.target.files ?? []);
+    const validFiles = files.filter(f => {
+      if (f.size > 10 * 1024 * 1024) {
+        toast.error(`Image "${f.name}" too large — max 10 MB.`);
+        return false;
+      }
+      return true;
+    });
+
+    const newItems = validFiles.map(f => ({
+      file: f,
+      preview: URL.createObjectURL(f)
+    }));
+
+    setNewFiles(prev => [...prev, ...newItems]);
+  };
+
+  const removeExistingImage = (index: number) => {
+    setExistingImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeNewFile = (index: number) => {
+    setNewFiles(prev => {
+      const target = prev[index];
+      if (target) URL.revokeObjectURL(target.preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const toggleCategory = (cat: ProductCategory) => {
+    setSelectedCats(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // MUST capture FormData synchronously before any state updates
-    // (setLoading causes re-render which can nullify e.currentTarget)
-    const formData = new FormData(e.currentTarget);
+    const rawForm = e.currentTarget;
+    const formData = new FormData(rawForm);
+
+    if (selectedCats.length === 0) {
+      toast.error("Please select at least one category.");
+      return;
+    }
+
+    // Compile categories array
+    formData.delete("categories");
+    selectedCats.forEach(cat => {
+      formData.append("categories", cat);
+    });
+
+    // Compile existing images array
+    formData.delete("existing_image_urls");
+    existingImages.forEach(url => {
+      formData.append("existing_image_urls", url);
+    });
+
+    // Compile newly uploaded files
+    formData.delete("new_images");
+    formData.delete("images");
+    newFiles.forEach(item => {
+      formData.append("new_images", item.file); // for updateProduct
+      formData.append("images", item.file);     // for createProduct
+    });
+
     setLoading(true);
 
     try {
@@ -60,8 +125,16 @@ function ProductForm({
 
       if (res.success) {
         toast.success(existing ? "Product updated." : "Product created.");
-        // Optimistic refresh — parent will re-read from server after revalidation
-        onDone({ ...existing, ...Object.fromEntries(formData) } as unknown as Product);
+        onDone({
+          ...existing,
+          name: formData.get("name") as string,
+          price: parseFloat(formData.get("price") as string),
+          description: formData.get("description") as string,
+          categories: selectedCats,
+          category: selectedCats[0] || "Gift",
+          image_urls: [...existingImages, ...newFiles.map(() => "")], // placeholder for UI
+          image_url: existingImages[0] || null,
+        } as unknown as Product);
       } else {
         toast.error(res.error ?? "Failed.");
       }
@@ -79,7 +152,7 @@ function ProductForm({
         <h2 className="font-black text-[#0B1F4D] text-lg">
           {existing ? "Edit Product" : "New Product"}
         </h2>
-        <button onClick={onCancel} className="p-2 rounded-lg hover:bg-[#f8f9fb] text-slate-400 hover:text-[#C41E2C]">
+        <button type="button" onClick={onCancel} className="p-2 rounded-lg hover:bg-[#f8f9fb] text-slate-400 hover:text-[#C41E2C]">
           <X className="h-5 w-5" />
         </button>
       </div>
@@ -95,13 +168,39 @@ function ProductForm({
         <Textarea label="Description" name="description" defaultValue={existing?.description ?? ""}
           placeholder="Short description shown on the product card…" rows={3} />
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <Select label="Category" name="category" required options={CATEGORY_OPTIONS}
-            placeholder="Select…" defaultValue={existing?.category} />
+        {/* Categories multiselect selection */}
+        <div>
+          <label className="text-sm font-semibold text-[#0B1F4D] block mb-2">
+            Categories <span className="text-[#C41E2C]">*</span>
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {CATEGORY_OPTIONS.map((opt) => {
+              const val = opt.value as ProductCategory;
+              const isChecked = selectedCats.includes(val);
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => toggleCategory(val)}
+                  className={[
+                    "px-3 py-2 rounded-xl text-xs font-bold border transition-all text-center cursor-pointer",
+                    isChecked
+                      ? "bg-[#0B1F4D] border-[#0B1F4D] text-white"
+                      : "bg-white border-[#e2e8f0] text-slate-500 hover:border-slate-300 hover:bg-[#f8f9fb]"
+                  ].join(" ")}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <Input label="Display Order" name="display_order" type="number" min="0"
             defaultValue={existing?.display_order ?? 0}
             hint="Lower = shown first" />
-          <div className="flex flex-col gap-3 pt-6">
+          <div className="flex gap-6 pt-6">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" name="is_available" value="true"
                 defaultChecked={existing?.is_available ?? true}
@@ -117,25 +216,68 @@ function ProductForm({
           </div>
         </div>
 
-        {/* Image */}
+        {/* Product Images Manager */}
         <div>
           <label className="text-sm font-semibold text-[#0B1F4D] block mb-2">
-            Product Image <span className="text-slate-400 font-normal">(max 10 MB)</span>
+            Product Images <span className="text-slate-400 font-normal">(max 10 MB per image)</span>
           </label>
-          <div className="flex gap-4 items-start">
-            {preview && (
-              <div className="relative h-20 w-20 rounded-xl overflow-hidden border border-[#e2e8f0] shrink-0">
-                <Image src={preview} alt="Preview" fill className="object-cover" />
+          
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4 mb-4">
+            {/* Existing images */}
+            {existingImages.map((url, i) => (
+              <div key={`existing-${url}-${i}`} className="relative aspect-square rounded-xl overflow-hidden border border-[#e2e8f0] group bg-slate-50">
+                <Image src={url} alt={`Existing ${i}`} fill className="object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeExistingImage(i)}
+                  className="absolute top-1.5 right-1.5 p-1.5 rounded-full bg-red-500 text-white shadow-md hover:bg-red-600 transition-colors cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+                <div className="absolute bottom-0 inset-x-0 bg-black/60 py-0.5 text-center">
+                  <span className="text-[9px] text-white font-semibold">Saved #{i+1}</span>
+                </div>
               </div>
-            )}
-            <button type="button" onClick={() => fileRef.current?.click()}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-[#e2e8f0] text-slate-500 text-sm hover:border-[#0B1F4D]/40 hover:text-[#0B1F4D] transition-all">
-              <Upload className="h-4 w-4" />
-              {preview ? "Change Image" : "Upload Image"}
+            ))}
+
+            {/* New files preview */}
+            {newFiles.map((item, i) => (
+              <div key={`new-${item.preview}-${i}`} className="relative aspect-square rounded-xl overflow-hidden border border-dashed border-[#0B1F4D]/30 group bg-slate-50">
+                <Image src={item.preview} alt={`New ${i}`} fill className="object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeNewFile(i)}
+                  className="absolute top-1.5 right-1.5 p-1.5 rounded-full bg-red-500 text-white shadow-md hover:bg-red-600 transition-colors cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+                <div className="absolute bottom-0 inset-x-0 bg-[#0B1F4D]/80 py-0.5 text-center">
+                  <span className="text-[9px] text-white font-semibold">New #{i+1}</span>
+                </div>
+              </div>
+            ))}
+
+            {/* Upload Box */}
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex flex-col items-center justify-center aspect-square rounded-xl border-2 border-dashed border-[#e2e8f0] hover:border-[#0B1F4D]/40 text-slate-400 hover:text-[#0B1F4D] transition-all bg-white cursor-pointer p-4 text-center"
+            >
+              <Upload className="h-6 w-6 mb-2" />
+              <span className="text-xs font-bold">Add Images</span>
+              <span className="text-[9px] mt-1 opacity-75">Multi-select ok</span>
             </button>
-            <input ref={fileRef} type="file" name="image" accept="image/*"
-              className="hidden" onChange={handleFileChange} />
           </div>
+
+          <input
+            ref={fileRef}
+            type="file"
+            name="new_images"
+            multiple
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
         </div>
 
         <div className="flex gap-3 pt-2">
@@ -268,7 +410,7 @@ export function ProductsManager({ initialProducts }: { initialProducts: Product[
                   <h3 className="font-bold text-[#0B1F4D] text-sm leading-snug">{product.name}</h3>
                   <span className="text-[#0B1F4D] font-black text-sm shrink-0">{formatPrice(product.price)}</span>
                 </div>
-                <p className="text-xs text-slate-400 mb-3">{product.category} · Order #{product.display_order}</p>
+                <p className="text-xs text-slate-400 mb-3">{(product.categories && product.categories.length > 0 ? product.categories : [product.category]).join(", ")} · Order #{product.display_order}</p>
 
                 {/* Actions */}
                 <div className="flex gap-2">

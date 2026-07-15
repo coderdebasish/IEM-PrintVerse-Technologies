@@ -65,8 +65,27 @@ export interface Order {
   invoice_released_at: string | null;
   // Cancellation
   cancellation_reason: string | null;
+  cancellation_requested?: boolean;
+  cancellation_requested_reason?: string | null;
+  // Feedback
+  feedback_token: string | null;
+  feedback_requested_at: string | null;
+  has_submitted_feedback?: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface Feedback {
+  id: string;
+  order_id: string;
+  tracking_id: string;
+  customer_name: string;
+  rating: number;
+  title: string | null;
+  message: string;
+  is_approved: boolean;
+  is_published: boolean;
+  created_at: string;
 }
 
 export interface Product {
@@ -76,7 +95,9 @@ export interface Product {
   description: string | null;
   price: number;
   category: ProductCategory;
+  categories: ProductCategory[];
   image_url: string | null;
+  image_urls: string[];
   is_available: boolean;
   is_coming_soon: boolean;
   display_order: number;

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { createServiceClient } from "@/lib/supabase/server";
 import {
   Printer,
   Zap,
@@ -14,6 +15,7 @@ import {
   ArrowRight,
   Layers,
 } from "lucide-react";
+import { InteractiveHero } from "./InteractiveHero";
 
 export const metadata: Metadata = {
   title: "PrintVerse Technologies — Where Every Idea Takes Shape",
@@ -135,110 +137,29 @@ const TESTIMONIALS = [
 
 /* ── Component ────────────────────────────────────────────────────────────── */
 
-export default function HomePage() {
+export default async function HomePage() {
+  const service = createServiceClient();
+  const { data: dbFeedback } = await service
+    .from("feedback")
+    .select("customer_name, rating, title, message")
+    .eq("is_published", true)
+    .order("created_at", { ascending: false })
+    .limit(6);
+
+  const testimonials = [
+    ...(dbFeedback?.map((f: { customer_name: string; rating: number; title: string | null; message: string }) => ({
+      name: f.customer_name,
+      role: "Verified Customer",
+      text: f.message,
+      rating: f.rating
+    })) || []),
+    ...TESTIMONIALS
+  ].slice(0, 6);
+
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section
-        id="hero"
-        className="relative overflow-hidden bg-hero-gradient text-white"
-        style={{ minHeight: "88vh" }}
-      >
-        {/* Decorative grid overlay */}
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.15) 1px, transparent 1px)",
-            backgroundSize: "48px 48px",
-          }}
-        />
-
-        {/* Glowing blobs */}
-        <div
-          className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-20"
-          style={{
-            background:
-              "radial-gradient(circle, #C41E2C 0%, transparent 70%)",
-          }}
-        />
-        <div
-          className="absolute bottom-0 -left-24 w-80 h-80 rounded-full opacity-15"
-          style={{
-            background:
-              "radial-gradient(circle, #D4A017 0%, transparent 70%)",
-          }}
-        />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-36 flex flex-col items-center text-center">
-          {/* Badge */}
-          <div className="ribbon-badge mb-8">
-            <Layers className="h-3.5 w-3.5" />
-            Powered by IIFR Lab · IEM Kolkata
-          </div>
-
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-tight tracking-tight text-white max-w-4xl">
-            Where Every Idea{" "}
-            <span
-              className="relative inline-block"
-              style={{ color: "#D4A017" }}
-            >
-              Takes Shape
-              <span
-                className="absolute -bottom-1 left-0 w-full h-1 rounded-full"
-                style={{
-                  background:
-                    "linear-gradient(90deg, #D4A017, #f0c040, #D4A017)",
-                }}
-              />
-            </span>
-          </h1>
-
-          <p className="mt-6 text-lg sm:text-xl text-slate-300 max-w-2xl leading-relaxed">
-            Professional 3D printing at a flat{" "}
-            <span className="text-[#D4A017] font-bold">₹4/gram</span>. Upload
-            your design or choose from our catalog — we handle the rest.
-          </p>
-
-          <div className="mt-10 flex flex-col sm:flex-row gap-4">
-            <Link
-              href="/quote"
-              id="hero-cta-quote"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-[#C41E2C] text-white font-bold text-base hover:bg-[#a01824] transition-all duration-200 shadow-lg hover:shadow-[0_8px_30px_rgba(196,30,44,0.45)] animate-pulse-glow"
-            >
-              Request a Free Quote
-              <ArrowRight className="h-5 w-5" />
-            </Link>
-            <Link
-              href="/products"
-              id="hero-cta-products"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl border-2 border-white/30 text-white font-bold text-base hover:bg-white/10 hover:border-white/60 transition-all duration-200"
-            >
-              Browse Products
-              <ChevronRight className="h-5 w-5" />
-            </Link>
-          </div>
-
-          {/* Trust stats */}
-          <div className="mt-16 grid grid-cols-3 gap-8 sm:gap-16 text-center">
-            {[
-              { val: "₹4", label: "Per Gram" },
-              { val: "50g+", label: "Minimum Order" },
-              { val: "100%", label: "Custom Made" },
-            ].map(({ val, label }) => (
-              <div key={label}>
-                <p
-                  className="text-3xl sm:text-4xl font-black"
-                  style={{ color: "#D4A017" }}
-                >
-                  {val}
-                </p>
-                <p className="text-slate-400 text-sm mt-1">{label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <InteractiveHero />
 
       {/* ── Why PrintVerse ───────────────────────────────────────────────── */}
       <section id="why-us" className="section-padding bg-white">
@@ -413,8 +334,8 @@ export default function HomePage() {
               Trusted by Makers & Dreamers
             </h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {TESTIMONIALS.map(({ name, role, text, rating }) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {testimonials.map(({ name, role, text, rating }) => (
               <div
                 key={name}
                 className="rounded-2xl p-7 bg-white border border-[#e2e8f0] flex flex-col gap-4"

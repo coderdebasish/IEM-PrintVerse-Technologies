@@ -31,25 +31,15 @@ export function Navbar() {
             className="flex items-center gap-2 shrink-0"
             onClick={() => setIsOpen(false)}
           >
-            {/* SCAFFOLD: Replace with real logo once logo.png is provided */}
             <div className="relative h-10 w-48">
-              {/* Try real logo first; falls back to text wordmark */}
               <Image
                 src="/logo.png"
                 alt="PrintVerse Technologies"
                 fill
                 className="object-contain object-left"
-                onError={(e) => {
-                  // Hide broken image, show fallback
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
                 priority
               />
             </div>
-            {/* Text fallback (hidden when image loads) */}
-            <span className="font-black text-[#0B1F4D] text-xl tracking-tight leading-none hidden-when-logo">
-              Print<span className="text-[#C41E2C]">Verse</span>
-            </span>
           </Link>
 
           {/* Desktop nav */}

@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, Search, Package } from "lucide-react";
+import { ShoppingCart, Search, Package, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatPrice } from "@/lib/utils/helpers";
@@ -46,36 +47,103 @@ export function ProductsGrid({ products, activeCategory }: ProductsGridProps) {
 }
 
 function ProductCard({ product }: { product: Product }) {
+  const [activeIndex, setActiveIndex] = useState(0);
   const isComingSoon = product.is_coming_soon || !product.is_available;
+
+  const images = Array.from(
+    new Set(
+      [
+        product.image_url,
+        ...(product.image_urls || []),
+      ].filter((url): url is string => typeof url === "string" && url.trim() !== "")
+    )
+  );
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (images.length > 1) {
+      setActiveIndex((prev) => (prev + 1) % images.length);
+    }
+  };
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (images.length > 1) {
+      setActiveIndex((prev) => (prev - 1 + images.length) % images.length);
+    }
+  };
+
+  const displayImage = images[activeIndex] || null;
 
   return (
     <div
-      className="group bg-white rounded-2xl border border-[#e2e8f0] overflow-hidden card-hover"
+      className="group bg-white rounded-2xl border border-[#e2e8f0] overflow-hidden card-hover flex flex-col justify-between"
       style={{ boxShadow: "var(--shadow-card)" }}
     >
       {/* Image */}
       <div className="relative aspect-square bg-[#f8f9fb] overflow-hidden">
-        {product.image_url ? (
-          <Image
-            src={product.image_url}
-            alt={product.name}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <Package className="h-12 w-12 text-slate-200" />
-          </div>
+        <Link href={`/products/${product.slug}`} className="block w-full h-full relative">
+          {displayImage ? (
+            <Image
+              src={displayImage}
+              alt={product.name}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <Package className="h-12 w-12 text-slate-200" />
+            </div>
+          )}
+        </Link>
+
+        {/* Next/Prev Navigation Controls */}
+        {images.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={handlePrev}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/90 text-[#0B1F4D] border border-[#e2e8f0] hover:bg-white shadow-sm hover:scale-105 active:scale-95 transition-all opacity-0 group-hover:opacity-100 z-10 cursor-pointer"
+              aria-label="Previous image"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleNext}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/95 text-[#0B1F4D] border border-[#e2e8f0] hover:bg-white shadow-sm hover:scale-105 active:scale-95 transition-all opacity-0 group-hover:opacity-100 z-10 cursor-pointer"
+              aria-label="Next image"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+
+            {/* Indicator dots */}
+            <div className="absolute bottom-2.5 inset-x-0 flex justify-center gap-1 z-10 pointer-events-none">
+              {images.map((_, i) => (
+                <span
+                  key={i}
+                  className={[
+                    "h-1.5 rounded-full transition-all duration-300",
+                    activeIndex === i ? "w-3 bg-white" : "w-1.5 bg-white/50"
+                  ].join(" ")}
+                />
+              ))}
+            </div>
+          </>
         )}
 
         {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-          <span className="text-xs font-semibold bg-[#0B1F4D]/80 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
-            {product.category}
-          </span>
+        <div className="absolute top-3 left-3 flex flex-col items-start gap-1.5 max-w-[80%] z-10">
+          {(product.categories && product.categories.length > 0 ? product.categories : [product.category]).map((cat) => (
+            <span key={cat} className="text-[10px] font-semibold bg-[#0B1F4D]/80 text-white px-2 py-0.5 rounded-full backdrop-blur-sm truncate max-w-full">
+              {cat}
+            </span>
+          ))}
           {isComingSoon && (
-            <span className="text-xs font-bold bg-[#D4A017] text-[#0B1F4D] px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold bg-[#D4A017] text-[#0B1F4D] px-2 py-0.5 rounded-full">
               Coming Soon
             </span>
           )}

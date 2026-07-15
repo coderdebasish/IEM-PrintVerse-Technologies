@@ -24,7 +24,7 @@ export async function submitQuote(
     };
   }
 
-  const { customer_name, email, phone, message, print_preferences } = parsed.data;
+  const { customer_name, email, phone, message, print_preferences, product_id } = parsed.data;
   const serviceClient = createServiceClient();
 
   // ── 2. Upload STL file if provided ────────────────────────────────────────
@@ -78,6 +78,7 @@ export async function submitQuote(
     stl_file_url: stlFileUrl,
     message: message || null,
     print_preferences: print_preferences || null,
+    product_id: product_id || null,
     status: "Requested",
   });
 
@@ -183,4 +184,19 @@ function newQuoteAdminEmailHtml({
     </div>
   </div>
 </body></html>`;
+}
+
+export async function getProductBySlug(slug: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, name, price, image_url, image_urls, category, categories")
+    .eq("slug", slug)
+    .single();
+
+  if (error) {
+    console.error("getProductBySlug error:", error.message);
+    return null;
+  }
+  return data;
 }

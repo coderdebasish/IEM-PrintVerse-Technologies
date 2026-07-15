@@ -286,3 +286,78 @@ function invoiceEmailHtml({ customer_name, tracking_id }: { customer_name: strin
 <p style="color:#475569;font-size:13px;">Track at <a href="${process.env.NEXT_PUBLIC_SITE_URL}/track" style="color:#C41E2C;">printverse.in/track</a></p>
 </div></div></body></html>`;
 }
+
+// ─── Feedback System Actions ──────────────────────────────────────────────────
+
+export async function sendFeedbackRequest(
+  orderId: string
+): Promise<{ success: boolean; token?: string; error?: string }> {
+  await requireAdmin();
+  const service = createServiceClient();
+
+  const { data: order, error: fetchError } = await service
+    .from("orders")
+    .select("tracking_id, feedback_token")
+    .eq("id", orderId)
+    .single();
+
+  if (fetchError || !order) return { success: false, error: "Order not found." };
+
+  let token = order.feedback_token;
+  if (!token) {
+    const crypto = await import("crypto");
+    token = crypto.randomUUID();
+    const { error: updateError } = await service
+      .from("orders")
+      .update({
+        feedback_token: token,
+        feedback_requested_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+
+    if (updateError) return { success: false, error: updateError.message };
+  }
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  return { success: true, token };
+}
+
+export async function toggleFeedbackApproval(
+  feedbackId: string,
+  orderId: string,
+  isApproved: boolean
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  const service = createServiceClient();
+
+  const { error } = await service
+    .from("feedback")
+    .update({ is_approved: isApproved })
+    .eq("id", feedbackId);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/home");
+  return { success: true };
+}
+
+export async function toggleFeedbackPublish(
+  feedbackId: string,
+  orderId: string,
+  isPublished: boolean
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  const service = createServiceClient();
+
+  const { error } = await service
+    .from("feedback")
+    .update({ is_published: isPublished })
+    .eq("id", feedbackId);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/home");
+  return { success: true };
+}

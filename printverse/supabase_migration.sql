@@ -160,6 +160,7 @@ RETURNS TABLE (
   invoice_released      boolean,
   invoice_url           text,
   cancellation_reason   text,
+  feedback_token        text,
   created_at            timestamptz,
   updated_at            timestamptz
 )
@@ -174,7 +175,7 @@ BEGIN
     o.invoice_released,
     -- Only return invoice_url when invoice has been released
     CASE WHEN o.invoice_released THEN o.invoice_url ELSE NULL END AS invoice_url,
-    o.cancellation_reason, o.created_at, o.updated_at
+    o.cancellation_reason, o.feedback_token, o.created_at, o.updated_at
   FROM orders o
   WHERE o.tracking_id = p_tracking_id
   LIMIT 1;
@@ -223,6 +224,119 @@ $$;
 --   Policies:
 --     INSERT/SELECT/UPDATE/DELETE: authenticated only
 --     (Customer gets a signed URL generated server-side)
+
+-- ── 8. FEEDBACK System ───────────────────────────────────────────────────────
+-- Add feedback tracking fields to orders
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS feedback_token TEXT UNIQUE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS feedback_requested_at TIMESTAMPTZ;
+
+-- Create feedback table
+CREATE TABLE IF NOT EXISTS feedback (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id      uuid REFERENCES orders(id) ON DELETE CASCADE,
+  tracking_id   text NOT NULL,
+  customer_name text NOT NULL,
+  rating        integer CHECK (rating BETWEEN 1 AND 5),
+  title         text,
+  message       text NOT NULL,
+  is_approved   boolean NOT NULL DEFAULT false,
+  is_published  boolean NOT NULL DEFAULT false,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- Feedback RLS
+ALTER TABLE feedback ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can read published feedback" ON feedback;
+CREATE POLICY "Anyone can read published feedback" ON feedback
+  FOR SELECT TO anon USING (is_published = true);
+
+DROP POLICY IF EXISTS "Service role manages all" ON feedback;
+CREATE POLICY "Service role manages all" ON feedback
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- ── 9. CANCELLATION REQUESTS & FEEDBACK INTEGRATION ─────────────────────────
+-- Add cancellation request fields to orders
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancellation_requested boolean DEFAULT false;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancellation_requested_reason text;
+
+-- Update get_order_by_tracking to return cancellation request fields, has_submitted_feedback, and quote details
+DROP FUNCTION IF EXISTS get_order_by_tracking(text);
+CREATE OR REPLACE FUNCTION get_order_by_tracking(p_tracking_id text)
+RETURNS TABLE (
+  id                    uuid,
+  tracking_id           text,
+  order_type            text,
+  status                text,
+  customer_name         text,
+  email                 text,
+  phone                 text,
+  product_id            uuid,
+  quantity              integer,
+  delivery_address_line text,
+  delivery_city         text,
+  delivery_state        text,
+  delivery_pincode      text,
+  delivery_charge       numeric,
+  subtotal              numeric,
+  total_amount          numeric,
+  invoice_released      boolean,
+  invoice_url           text,
+  cancellation_reason   text,
+  feedback_token        text,
+  cancellation_requested boolean,
+  cancellation_requested_reason text,
+  has_submitted_feedback boolean,
+  quoted_price          numeric,
+  print_preferences     jsonb,
+  message               text,
+  stl_file_url          text,
+  created_at            timestamptz,
+  updated_at            timestamptz
+)
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    o.id, o.tracking_id, o.order_type, o.status, o.customer_name,
+    o.email, o.phone, o.product_id, o.quantity,
+    o.delivery_address_line, o.delivery_city, o.delivery_state,
+    o.delivery_pincode, o.delivery_charge, o.subtotal, o.total_amount,
+    o.invoice_released,
+    -- Only return invoice_url when invoice has been released
+    CASE WHEN o.invoice_released THEN o.invoice_url ELSE NULL END AS invoice_url,
+    o.cancellation_reason, o.feedback_token, o.cancellation_requested, o.cancellation_requested_reason,
+    EXISTS (SELECT 1 FROM feedback f WHERE f.order_id = o.id) AS has_submitted_feedback,
+    o.quoted_price, o.print_preferences, o.message, o.stl_file_url,
+    o.created_at, o.updated_at
+  FROM orders o
+  WHERE o.tracking_id = p_tracking_id
+  LIMIT 1;
+END;
+$$;
+
+-- ── 10. STORAGE BUCKETS ──────────────────────────────────────────────────────
+-- Insert storage buckets if they do not exist
+INSERT INTO storage.buckets (id, name, public, file_size_limit)
+VALUES 
+  ('product-images', 'product-images', true, 10485760),
+  ('invoices', 'invoices', false, 10485760),
+  ('stl-files', 'stl-files', false, 52428800)
+ON CONFLICT (id) DO NOTHING;
+
+-- ── 11. MULTI-IMAGE & MULTI-CATEGORY SUPPORT FOR PRODUCTS ───────────────────
+-- Add image_urls and categories columns
+ALTER TABLE products ADD COLUMN IF NOT EXISTS image_urls text[] DEFAULT '{}'::text[];
+ALTER TABLE products ADD COLUMN IF NOT EXISTS categories text[] DEFAULT '{}'::text[];
+
+-- Migrate existing data
+UPDATE products 
+SET image_urls = ARRAY[image_url] 
+WHERE (image_urls IS NULL OR array_length(image_urls, 1) IS NULL) AND image_url IS NOT NULL;
+
+UPDATE products 
+SET categories = ARRAY[category] 
+WHERE (categories IS NULL OR array_length(categories, 1) IS NULL) AND category IS NOT NULL;
 
 -- ── DONE ──────────────────────────────────────────────────────────────────
 -- After running this, go to Supabase Dashboard → Authentication → Users

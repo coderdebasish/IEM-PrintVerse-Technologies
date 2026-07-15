@@ -5,19 +5,20 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowLeft, Copy, ExternalLink, CheckCircle2, Phone,
-  FileText, XCircle, DollarSign, Download,
+  FileText, XCircle, DollarSign, Download, Star, MessageSquare, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { StatusBadge, OrderTypeBadge } from "@/components/ui/Badge";
+import { StatusBadge, OrderTypeBadge, Badge } from "@/components/ui/Badge";
 import { StatusTimeline } from "@/components/ui/StatusTimeline";
 import { Button } from "@/components/ui/Button";
 import { formatDate, formatPrice } from "@/lib/utils/helpers";
 import {
   updateOrderStatus, setQuotedPrice, generatePaymentLink,
   markConfirmedViaCall, cancelOrder, releaseInvoice,
+  sendFeedbackRequest, toggleFeedbackApproval, toggleFeedbackPublish,
 } from "./actions";
-import type { Order, OrderStatus } from "@/types";
+import type { Order, OrderStatus, Feedback } from "@/types";
 
 const QUOTE_STATUSES: OrderStatus[] = [
   "Requested","Contacted","Quoted","Payment Pending","Paid",
@@ -30,6 +31,7 @@ const PURCHASE_STATUSES: OrderStatus[] = [
 
 type OrderWithProduct = Order & {
   products: { id: string; name: string; price: number; image_url: string | null } | null;
+  feedback: Feedback[] | null;
 };
 
 export function OrderDetailClient({ order: initialOrder }: { order: OrderWithProduct }) {
@@ -122,6 +124,39 @@ export function OrderDetailClient({ order: initialOrder }: { order: OrderWithPro
     }
   };
 
+  // ── Feedback Request & Manage ───────────────────────────────────────────
+  const handleRequestFeedback = () =>
+    run("feedback-request", async () => {
+      const res = await sendFeedbackRequest(order.id);
+      if (res.success && res.token) {
+        applyUpdate({
+          feedback_token: res.token,
+          feedback_requested_at: new Date().toISOString(),
+        });
+      }
+      return res;
+    });
+
+  const handleToggleApproved = (feedbackId: string, isApproved: boolean) =>
+    run("feedback-approve", async () => {
+      const res = await toggleFeedbackApproval(feedbackId, order.id, isApproved);
+      if (res.success) {
+        const updatedFeedback = order.feedback?.map(f => f.id === feedbackId ? { ...f, is_approved: isApproved } : f) || null;
+        setOrder(prev => ({ ...prev, feedback: updatedFeedback }));
+      }
+      return res;
+    });
+
+  const handleTogglePublished = (feedbackId: string, isPublished: boolean) =>
+    run("feedback-publish", async () => {
+      const res = await toggleFeedbackPublish(feedbackId, order.id, isPublished);
+      if (res.success) {
+        const updatedFeedback = order.feedback?.map(f => f.id === feedbackId ? { ...f, is_published: isPublished } : f) || null;
+        setOrder(prev => ({ ...prev, feedback: updatedFeedback }));
+      }
+      return res;
+    });
+
   const isQuote = order.order_type === "quote";
 
   return (
@@ -156,6 +191,36 @@ export function OrderDetailClient({ order: initialOrder }: { order: OrderWithPro
           </Button>
         )}
       </div>
+
+      {/* Customer Cancellation Request Banner */}
+      {order.cancellation_requested && order.status !== "Cancelled" && (
+        <div className="p-5 bg-amber-50 border border-amber-300 rounded-2xl flex items-start gap-4 animate-pulse-glow">
+          <div className="p-2 rounded-xl bg-amber-100 text-amber-800">
+            <AlertTriangle className="h-6 w-6" />
+          </div>
+          <div className="flex-1 space-y-1">
+            <p className="text-sm font-black text-amber-900">
+              Customer Requested Order Cancellation
+            </p>
+            <p className="text-xs text-amber-700 leading-relaxed">
+              Reason submitted: <strong className="italic">"{order.cancellation_requested_reason}"</strong>
+            </p>
+            <div className="pt-2">
+              <Button
+                variant="accent"
+                size="sm"
+                onClick={() => {
+                  setCancelReason(order.cancellation_requested_reason || "");
+                  setShowCancelModal(true);
+                }}
+                className="text-xs"
+              >
+                Approve &amp; Cancel Order
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column */}
@@ -412,6 +477,152 @@ export function OrderDetailClient({ order: initialOrder }: { order: OrderWithPro
               <p className="text-sm text-red-700 leading-relaxed">{order.cancellation_reason}</p>
             </Card>
           )}
+
+          {/* Feedback Section */}
+          <Card title="Customer Feedback">
+            {order.feedback && order.feedback.length > 0 ? (
+              (() => {
+                const fb = order.feedback[0];
+                return (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={[
+                            "h-5 w-5",
+                            i < fb.rating
+                              ? "fill-[#D4A017] text-[#D4A017]"
+                              : "text-slate-200",
+                          ].join(" ")}
+                        />
+                      ))}
+                      <span className="text-sm font-bold text-[#0B1F4D] ml-1">
+                        {fb.rating}/5
+                      </span>
+                    </div>
+
+                    {fb.title && (
+                      <p className="text-sm font-bold text-[#0B1F4D] leading-snug">
+                        {fb.title}
+                      </p>
+                    )}
+                    <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 whitespace-pre-wrap">
+                      {fb.message}
+                    </p>
+
+                    <div className="space-y-2 pt-2 border-t border-[#f1f5f9]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-500">
+                          Approved Status:
+                        </span>
+                        <Badge variant={fb.is_approved ? "success" : "error"}>
+                          {fb.is_approved ? "Approved" : "Not Approved"}
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-500">
+                          Published Status:
+                        </span>
+                        <Badge variant={fb.is_published ? "success" : "error"}>
+                          {fb.is_published ? "Published" : "Not Published"}
+                        </Badge>
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          onClick={() => handleToggleApproved(fb.id, !fb.is_approved)}
+                          loading={loading === "feedback-approve"}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-xs"
+                        >
+                          {fb.is_approved ? "Disapprove" : "Approve"}
+                        </Button>
+                        <Button
+                          onClick={() => handleTogglePublished(fb.id, !fb.is_published)}
+                          loading={loading === "feedback-publish"}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-xs"
+                        >
+                          {fb.is_published ? "Unpublish" : "Publish"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="space-y-3">
+                {!order.feedback_token ? (
+                  <>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Generate a feedback link to share with the customer after order delivery.
+                    </p>
+                    <Button
+                      onClick={handleRequestFeedback}
+                      loading={loading === "feedback-request"}
+                      variant="primary"
+                      size="sm"
+                      className="w-full text-xs"
+                      icon={<MessageSquare className="h-4 w-4" />}
+                      id="generate-feedback-link-btn"
+                    >
+                      Generate Feedback Link
+                    </Button>
+                  </>
+                ) : (
+                  (() => {
+                    const feedbackUrl = `${window.location.origin}/feedback/${order.feedback_token}`;
+                    const waText = `Hi ${order.customer_name}! Thank you for choosing PrintVerse Technologies. We would love to hear your feedback on your order #${order.tracking_id}. Please submit your review here: ${feedbackUrl}`;
+                    const waShareLink = `https://wa.me/${order.phone.replace(/\+/g, "")}?text=${encodeURIComponent(waText)}`;
+
+                    return (
+                      <div className="space-y-3">
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                            Feedback Link
+                          </p>
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              readOnly
+                              value={feedbackUrl}
+                              className="text-xs text-slate-600 bg-transparent border-0 outline-none flex-1 truncate select-all"
+                            />
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(feedbackUrl);
+                                toast.success("Feedback link copied!");
+                              }}
+                              className="p-1 text-slate-400 hover:text-[#0B1F4D]"
+                              title="Copy feedback link"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <a
+                          href={waShareLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex w-full items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#25D366] text-white font-bold text-xs hover:bg-[#1ea855] transition-colors"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4 fill-white">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                          </svg>
+                          Share feedback request on WhatsApp
+                        </a>
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
+            )}
+          </Card>
         </div>
       </div>
 

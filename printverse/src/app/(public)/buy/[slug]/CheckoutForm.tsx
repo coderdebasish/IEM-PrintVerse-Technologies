@@ -145,13 +145,15 @@ export function CheckoutForm({
   } = useForm<CheckoutFormData>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(checkoutFormSchema) as any,
-    defaultValues: { quantity: 1 },
+    defaultValues: { quantity: 1, delivery_method: "shipment" },
   });
 
   const quantity = watch("quantity") || 1;
+  const deliveryMethod = watch("delivery_method") || "shipment";
+  const currentDeliveryCharge = deliveryMethod === "pickup" ? 0 : deliveryCharge;
   const MIN_PRICE = 4 * 50; // ₹200
   const subtotal = Math.max(product.price * quantity, MIN_PRICE * quantity);
-  const totalAmount = subtotal + deliveryCharge;
+  const totalAmount = subtotal + currentDeliveryCharge;
 
   // ── Pincode check ──────────────────────────────────────────────────────────
   const handlePincodeBlur = useCallback(
@@ -222,8 +224,8 @@ export function CheckoutForm({
               <span className="font-semibold text-[#0B1F4D]">{formatPrice(subtotal)}</span>
             </div>
             <div className="flex justify-between text-slate-500">
-              <span>Delivery (India Post)</span>
-              <span className="font-semibold text-[#0B1F4D]">{formatPrice(deliveryCharge)}</span>
+              <span>Delivery ({deliveryMethod === "pickup" ? "Self Pick-up" : "India Post"})</span>
+              <span className="font-semibold text-[#0B1F4D]">{currentDeliveryCharge === 0 ? "Free" : formatPrice(currentDeliveryCharge)}</span>
             </div>
             <div className="flex justify-between border-t border-[#e2e8f0] pt-1.5 mt-0.5">
               <span className="font-black text-[#0B1F4D]">Total</span>
@@ -264,75 +266,151 @@ export function CheckoutForm({
           </div>
         </div>
 
-        {/* Delivery address */}
+        {/* Delivery Method */}
         <div className="bg-white rounded-2xl border border-[#e2e8f0] p-6"
           style={{ boxShadow: "var(--shadow-card)" }}>
-          <h2 className="font-black text-[#0B1F4D] mb-1">Delivery Address</h2>
+          <h2 className="font-black text-[#0B1F4D] mb-3">Delivery Option</h2>
           <p className="text-xs text-slate-400 mb-5">
-            Shipped via <strong>India Post</strong>. Enter pincode first to auto-fill city &amp; state.
+            Choose how you would like to receive your 3D printed items.
           </p>
-          <div className="space-y-4">
-            {/* Pincode */}
-            <div>
-              <div className="flex gap-2">
-                <Input
-                  label="Pincode" required maxLength={6} id="checkout-pincode"
-                  placeholder="6-digit pincode"
-                  error={errors.delivery_pincode?.message}
-                  containerClassName="flex-1"
-                  {...register("delivery_pincode", {
-                    onBlur: (e) => handlePincodeBlur(e.target.value),
-                  })}
-                />
-                {pincodeStatus === "checking" && (
-                  <div className="flex items-end pb-2.5">
-                    <Loader2 className="h-5 w-5 animate-spin text-[#0B1F4D]" />
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                setValue("delivery_method", "shipment");
+              }}
+              className={[
+                "flex flex-col items-center justify-center p-4 rounded-xl border-2 text-center transition-all cursor-pointer",
+                deliveryMethod === "shipment"
+                  ? "border-[#0B1F4D] bg-[#0B1F4D]/5 text-[#0B1F4D]"
+                  : "border-[#e2e8f0] bg-white text-slate-500 hover:border-slate-300"
+              ].join(" ")}
+            >
+              <MapPin className="h-6 w-6 mb-2" />
+              <span className="text-sm font-bold">Home Delivery</span>
+              <span className="text-[10px] opacity-75 mt-1">Flat {formatPrice(deliveryCharge)} via India Post</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setValue("delivery_method", "pickup");
+                setValue("delivery_address_line", "Self Pick-up - IIFR Lab, IEM Kolkata", { shouldValidate: true });
+                setValue("delivery_city", "Kolkata", { shouldValidate: true });
+                setValue("delivery_state", "West Bengal", { shouldValidate: true });
+                setValue("delivery_pincode", "700091", { shouldValidate: true });
+              }}
+              className={[
+                "flex flex-col items-center justify-center p-4 rounded-xl border-2 text-center transition-all cursor-pointer",
+                deliveryMethod === "pickup"
+                  ? "border-[#0B1F4D] bg-[#0B1F4D]/5 text-[#0B1F4D]"
+                  : "border-[#e2e8f0] bg-white text-slate-500 hover:border-slate-300"
+              ].join(" ")}
+            >
+              <CheckCircle2 className="h-6 w-6 mb-2" />
+              <span className="text-sm font-bold">Self Pick-up</span>
+              <span className="text-[10px] opacity-75 mt-1">Free — Pick up at IIFR Lab</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Delivery address or Pickup info */}
+        {deliveryMethod === "shipment" ? (
+          <div className="bg-white rounded-2xl border border-[#e2e8f0] p-6"
+            style={{ boxShadow: "var(--shadow-card)" }}>
+            <h2 className="font-black text-[#0B1F4D] mb-1">Delivery Address</h2>
+            <p className="text-xs text-slate-400 mb-5">
+              Shipped via <strong>India Post</strong>. Enter pincode first to auto-fill city &amp; state.
+            </p>
+            <div className="space-y-4">
+              {/* Pincode */}
+              <div>
+                <div className="flex gap-2">
+                  <Input
+                    label="Pincode" required maxLength={6} id="checkout-pincode"
+                    placeholder="6-digit pincode"
+                    error={errors.delivery_pincode?.message}
+                    containerClassName="flex-1"
+                    {...register("delivery_pincode", {
+                      onBlur: (e) => handlePincodeBlur(e.target.value),
+                    })}
+                  />
+                  {pincodeStatus === "checking" && (
+                    <div className="flex items-end pb-2.5">
+                      <Loader2 className="h-5 w-5 animate-spin text-[#0B1F4D]" />
+                    </div>
+                  )}
+                </div>
+                {pincodeStatus !== "idle" && pincodeStatus !== "checking" && (
+                  <div className={[
+                    "flex items-start gap-2 mt-1.5 text-xs font-medium",
+                    pincodeStatus === "valid" ? "text-green-700" : "text-amber-700",
+                  ].join(" ")}>
+                    {pincodeStatus === "valid"
+                      ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      : <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />}
+                    <span>{pincodeMsg}</span>
                   </div>
                 )}
               </div>
-              {pincodeStatus !== "idle" && pincodeStatus !== "checking" && (
-                <div className={[
-                  "flex items-start gap-2 mt-1.5 text-xs font-medium",
-                  pincodeStatus === "valid" ? "text-green-700" : "text-amber-700",
-                ].join(" ")}>
-                  {pincodeStatus === "valid"
-                    ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                    : <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />}
-                  <span>{pincodeMsg}</span>
-                </div>
-              )}
-            </div>
 
-            <Input label="Full Address" required id="checkout-address"
-              placeholder="House/Flat no., Street, Area, Landmark"
-              error={errors.delivery_address_line?.message}
-              {...register("delivery_address_line")} />
+              <Input label="Full Address" required id="checkout-address"
+                placeholder="House/Flat no., Street, Area, Landmark"
+                error={errors.delivery_address_line?.message}
+                {...register("delivery_address_line")} />
 
-            <div className="grid grid-cols-2 gap-4">
-              <Input label="City / District" required id="checkout-city"
-                placeholder="e.g. Kolkata"
-                error={errors.delivery_city?.message}
-                {...register("delivery_city")} />
-              <Select label="State" required id="checkout-state"
-                placeholder="Select state…"
-                options={INDIAN_STATES}
-                error={errors.delivery_state?.message}
-                {...register("delivery_state")} />
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="City / District" required id="checkout-city"
+                  placeholder="e.g. Kolkata"
+                  error={errors.delivery_city?.message}
+                  {...register("delivery_city")} />
+                <Select label="State" required id="checkout-state"
+                  placeholder="Select state…"
+                  options={INDIAN_STATES}
+                  error={errors.delivery_state?.message}
+                  {...register("delivery_state")} />
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-[#f0f4ff]/70 rounded-2xl border border-dashed border-[#0B1F4D]/20 p-6 flex gap-4 items-start animate-fade-in">
+            <MapPin className="h-6 w-6 text-[#0B1F4D] shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-bold text-[#0B1F4D] text-sm">Pick up Point</h3>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                <strong>IIFR Lab, IEM Kolkata</strong><br />
+                Management House, D-1, Salt Lake Sector V, Kolkata, West Bengal 700091.
+              </p>
+              <p className="text-[10px] text-[#C41E2C] mt-2 font-bold uppercase tracking-wider">
+                ★ No delivery charges apply. We will notify you once printing is complete.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Delivery note */}
-        <div className="flex gap-3 p-4 bg-[#f8f9fb] rounded-xl border border-[#e2e8f0]">
-          <MapPin className="h-5 w-5 text-[#0B1F4D] shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-[#0B1F4D]">Delivery via India Post</p>
-            <p className="text-xs text-slate-500 mt-0.5">
-              After payment, we'll call you to confirm before printing.
-              Estimated delivery: 5–8 working days after dispatch.
-            </p>
+        {deliveryMethod === "shipment" ? (
+          <div className="flex gap-3 p-4 bg-[#f8f9fb] rounded-xl border border-[#e2e8f0]">
+            <MapPin className="h-5 w-5 text-[#0B1F4D] shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-[#0B1F4D]">Delivery via India Post</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                After payment, we'll call you to confirm before printing.
+                Estimated delivery: 5–8 working days after dispatch.
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex gap-3 p-4 bg-[#f8f9fb] rounded-xl border border-[#e2e8f0]">
+            <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-[#0B1F4D]">Self Pick-up Selected</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                We'll call you to confirm before printing. You will receive a notification
+                to collect your custom print once it is ready at the IIFR Lab.
+              </p>
+            </div>
+          </div>
+        )}
 
         <Button type="submit" variant="accent" size="lg" loading={submitting}
           className="w-full" id="checkout-submit-btn"

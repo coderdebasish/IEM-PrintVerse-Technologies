@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { useForm, Controller } from "react-hook-form";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
+import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import {
   ChevronDown,
   ChevronUp,
@@ -15,11 +17,12 @@ import {
   Copy,
   CheckCircle2,
   FileText,
+  Package,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { quoteFormSchema, type QuoteFormData } from "@/lib/validations/schemas";
-import { submitQuote } from "./actions";
+import { submitQuote, getProductBySlug } from "./actions";
 import { Input, Textarea, Select } from "@/components/ui/FormFields";
 import { Button } from "@/components/ui/Button";
 
@@ -135,6 +138,9 @@ function SuccessScreen({ trackingId }: { trackingId: string }) {
 // ── Main Form ──────────────────────────────────────────────────────────────
 
 export function QuoteForm() {
+  const searchParams = useSearchParams();
+  const productSlug = searchParams.get("product");
+
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [stlFile, setStlFile] = useState<File | null>(null);
   const [stlError, setStlError] = useState<string | null>(null);
@@ -143,16 +149,49 @@ export function QuoteForm() {
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [taggedProduct, setTaggedProduct] = useState<{
+    id: string;
+    name: string;
+    image_url: string;
+    category: string;
+  } | null>(null);
+  const [loadingProduct, setLoadingProduct] = useState(false);
+
   const {
     register,
     handleSubmit,
     control,
+    setValue,
     formState: { errors },
   } = useForm<QuoteFormData>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(quoteFormSchema) as any,
     defaultValues: { print_preferences: { quantity: 1 } },
   });
+
+  useEffect(() => {
+    if (productSlug) {
+      setLoadingProduct(true);
+      getProductBySlug(productSlug)
+        .then((prod) => {
+          if (prod) {
+            setTaggedProduct({
+              id: prod.id,
+              name: prod.name,
+              image_url: prod.image_url || (prod.image_urls && prod.image_urls[0]) || "",
+              category: prod.category || (prod.categories && prod.categories[0]) || "",
+            });
+            setValue("product_id", prod.id);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load product tag:", err);
+        })
+        .finally(() => {
+          setLoadingProduct(false);
+        });
+    }
+  }, [productSlug, setValue]);
 
   // ── File handling ──────────────────────────────────────────────────────
 
@@ -220,6 +259,60 @@ export function QuoteForm() {
       noValidate
       className="space-y-6"
     >
+      {/* Product Tagging Card */}
+      {loadingProduct && (
+        <div className="bg-white rounded-2xl border border-[#e2e8f0] p-4 flex items-center gap-3 animate-pulse">
+          <div className="h-12 w-12 rounded-lg bg-slate-100" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 bg-slate-100 rounded w-1/3" />
+            <div className="h-3 bg-slate-100 rounded w-1/4" />
+          </div>
+        </div>
+      )}
+
+      {!loadingProduct && taggedProduct && (
+        <div className="bg-[#0B1F4D]/5 rounded-2xl border-2 border-[#0B1F4D]/20 p-5 flex items-center justify-between gap-4 shadow-sm animate-fade-in">
+          <div className="flex items-center gap-4">
+            {taggedProduct.image_url ? (
+              <div className="relative h-16 w-16 rounded-xl overflow-hidden bg-slate-50 border border-[#e2e8f0] shrink-0">
+                <Image
+                  src={taggedProduct.image_url}
+                  alt={taggedProduct.name}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            ) : (
+              <div className="h-16 w-16 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                <Package className="h-6 w-6 text-slate-300" />
+              </div>
+            )}
+            <div>
+              <span className="text-[10px] font-bold text-[#C41E2C] uppercase tracking-wider block mb-0.5">
+                Product Customization Link
+              </span>
+              <h4 className="font-bold text-[#0B1F4D] text-base leading-tight">
+                {taggedProduct.name}
+              </h4>
+              <span className="inline-block text-[10px] font-medium bg-[#0B1F4D]/10 text-[#0B1F4D] px-2.5 py-0.5 rounded-full mt-1.5 border border-[#0B1F4D]/20">
+                {taggedProduct.category}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setTaggedProduct(null);
+              setValue("product_id", undefined);
+            }}
+            className="p-1.5 rounded-lg hover:bg-[#0B1F4D]/10 text-[#0B1F4D]/60 hover:text-[#C41E2C] transition-colors cursor-pointer"
+            title="Remove product tag"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
       {/* Card: Core Info */}
       <div
         className="bg-white rounded-2xl border border-[#e2e8f0] p-7"

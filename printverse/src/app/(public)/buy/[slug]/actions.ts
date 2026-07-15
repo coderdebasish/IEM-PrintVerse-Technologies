@@ -51,7 +51,7 @@ export async function submitCheckout(
   const {
     customer_name, email, phone,
     delivery_address_line, delivery_city, delivery_state, delivery_pincode,
-    quantity,
+    quantity, delivery_method,
   } = parsed.data;
 
   const service = createServiceClient();
@@ -70,12 +70,15 @@ export async function submitCheckout(
     return { success: false, error: "This product is not currently available for purchase." };
 
   // ── 3. Delivery rate from settings ───────────────────────────────────────────
-  const { data: settingRow } = await service
-    .from("settings")
-    .select("value")
-    .eq("key", "delivery_flat_rate")
-    .single();
-  const deliveryCharge = parseFloat(settingRow?.value ?? "80");
+  let deliveryCharge = 0;
+  if (delivery_method !== "pickup") {
+    const { data: settingRow } = await service
+      .from("settings")
+      .select("value")
+      .eq("key", "delivery_flat_rate")
+      .single();
+    deliveryCharge = parseFloat(settingRow?.value ?? "80");
+  }
 
   // ── 4. Server-authoritative total ────────────────────────────────────────────
   const subtotal = Math.max(product.price * quantity, MIN_PRICE * quantity);
@@ -101,10 +104,10 @@ export async function submitCheckout(
       customer_name, email, phone,
       product_id: product.id,
       quantity,
-      delivery_address_line,
-      delivery_city,
-      delivery_state,
-      delivery_pincode,
+      delivery_address_line: delivery_address_line || "Self Pick-up - IIFR Lab, IEM Kolkata",
+      delivery_city: delivery_city || "Kolkata",
+      delivery_state: delivery_state || "West Bengal",
+      delivery_pincode: delivery_pincode || "700091",
       delivery_charge: deliveryCharge,
       subtotal,
       total_amount: totalAmount,

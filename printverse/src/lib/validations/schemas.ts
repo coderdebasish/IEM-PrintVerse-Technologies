@@ -33,39 +33,66 @@ export const quoteFormSchema = z.object({
     ),
   message: z.string().max(2000).optional(),
   print_preferences: printPreferencesSchema.optional(),
+  product_id: z.string().uuid().optional(),
 });
 
 export type QuoteFormData = z.infer<typeof quoteFormSchema>;
 
-// ─── Buy Now / Checkout Form ──────────────────────────────────────────────────
-
 export const checkoutFormSchema = z.object({
-  customer_name: z.string().min(2, "Name must be at least 2 characters.").max(100),
-  email: z.string().email("Please enter a valid email address."),
-  phone: z
-    .string()
-    .min(1, "Phone number is required.")
-    .refine(
-      (val) => {
-        try {
-          return isValidPhoneNumber(val);
-        } catch {
-          return false;
-        }
-      },
-      { message: "Please enter a valid phone number." }
-    ),
-  delivery_address_line: z
-    .string()
-    .min(5, "Please enter your full address.")
-    .max(255),
-  delivery_city: z.string().min(2, "City is required.").max(100),
-  delivery_state: z.string().min(2, "State is required.").max(100),
-  delivery_pincode: z
-    .string()
-    .regex(/^\d{6}$/, "Pincode must be exactly 6 digits."),
-  quantity: z.coerce.number().int().min(1, "Quantity must be at least 1.").max(100),
-});
+    customer_name: z.string().min(2, "Name must be at least 2 characters.").max(100),
+    email: z.string().email("Please enter a valid email address."),
+    phone: z
+      .string()
+      .min(1, "Phone number is required.")
+      .refine(
+        (val) => {
+          try {
+            return isValidPhoneNumber(val);
+          } catch {
+            return false;
+          }
+        },
+        { message: "Please enter a valid phone number." }
+      ),
+    delivery_method: z.enum(["shipment", "pickup"]).default("shipment"),
+    delivery_address_line: z.string().max(255).optional().nullable(),
+    delivery_city: z.string().max(100).optional().nullable(),
+    delivery_state: z.string().max(100).optional().nullable(),
+    delivery_pincode: z.string().optional().nullable(),
+    quantity: z.coerce.number().int().min(1, "Quantity must be at least 1.").max(100),
+  })
+  .superRefine((data, ctx) => {
+    if (data.delivery_method === "shipment") {
+      if (!data.delivery_address_line || data.delivery_address_line.trim().length < 5) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Please enter your full address (at least 5 characters).",
+          path: ["delivery_address_line"],
+        });
+      }
+      if (!data.delivery_city || data.delivery_city.trim().length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "City is required.",
+          path: ["delivery_city"],
+        });
+      }
+      if (!data.delivery_state || data.delivery_state.trim().length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "State is required.",
+          path: ["delivery_state"],
+        });
+      }
+      if (!data.delivery_pincode || !/^\d{6}$/.test(data.delivery_pincode)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Pincode must be exactly 6 digits.",
+          path: ["delivery_pincode"],
+        });
+      }
+    }
+  });
 
 export type CheckoutFormData = z.infer<typeof checkoutFormSchema>;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
 import {
@@ -11,6 +11,9 @@ import {
   Package,
   ChevronRight,
   ArrowLeft,
+  AlertTriangle,
+  X,
+  CheckCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { isValidPhoneNumber } from "libphonenumber-js";
@@ -22,6 +25,8 @@ import { Input } from "@/components/ui/FormFields";
 import { Spinner } from "@/components/ui/Spinner";
 import { formatDate, formatPrice } from "@/lib/utils/helpers";
 import type { Order } from "@/types";
+import { FeedbackForm } from "@/app/(public)/feedback/[token]/FeedbackForm";
+import { requestCancellation } from "./actions";
 
 type Tab = "tracking-id" | "phone-email";
 
@@ -53,12 +58,20 @@ function OrderDetail({
   productName?: string;
   onBack?: () => void;
 }) {
+  const [localOrder, setLocalOrder] = useState<Order>(order);
   const [fetchingInvoice, setFetchingInvoice] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [loadingCancel, setLoadingCancel] = useState(false);
+
+  useEffect(() => {
+    setLocalOrder(order);
+  }, [order]);
 
   const handleDownloadInvoice = async () => {
     setFetchingInvoice(true);
     try {
-      const url = await getInvoiceSignedUrl(order.tracking_id);
+      const url = await getInvoiceSignedUrl(localOrder.tracking_id);
       if (url) {
         window.open(url, "_blank");
       } else {
@@ -66,6 +79,32 @@ function OrderDetail({
       }
     } finally {
       setFetchingInvoice(false);
+    }
+  };
+
+  const handleRequestCancellation = async () => {
+    if (cancelReason.trim().length < 10) {
+      toast.error("Please provide a reason of at least 10 characters.");
+      return;
+    }
+    setLoadingCancel(true);
+    try {
+      const res = await requestCancellation(localOrder.tracking_id, cancelReason);
+      if (res.success) {
+        toast.success("Cancellation request submitted successfully!");
+        setLocalOrder((prev) => ({
+          ...prev,
+          cancellation_requested: true,
+          cancellation_requested_reason: cancelReason.trim(),
+        }));
+        setShowCancelModal(false);
+      } else {
+        toast.error(res.error ?? "Failed to request cancellation.");
+      }
+    } catch {
+      toast.error("An error occurred. Please try again.");
+    } finally {
+      setLoadingCancel(false);
     }
   };
 
@@ -91,12 +130,12 @@ function OrderDetail({
               Tracking ID
             </p>
             <p className="text-3xl font-black text-[#0B1F4D] tracking-widest">
-              {order.tracking_id}
+              {localOrder.tracking_id}
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <StatusBadge status={order.status} />
-            <OrderTypeBadge type={order.order_type} />
+            <StatusBadge status={localOrder.status} />
+            <OrderTypeBadge type={localOrder.order_type} />
           </div>
         </div>
 
@@ -104,10 +143,50 @@ function OrderDetail({
           <div>
             <p className="text-slate-400 text-xs mb-0.5">Placed on</p>
             <p className="font-semibold text-[#0B1F4D]">
-              {formatDate(order.created_at)}
+              {formatDate(localOrder.created_at)}
             </p>
           </div>
-          {order.order_type === "purchase" && (
+
+          {/* Quote-specific details */}
+          {localOrder.order_type === "quote" && (
+            <>
+              {localOrder.quoted_price !== null && localOrder.quoted_price !== undefined && (
+                <div>
+                  <p className="text-slate-400 text-xs mb-0.5">Quoted Price</p>
+                  <p className="font-black text-[#C41E2C] text-lg">
+                    {formatPrice(localOrder.quoted_price)}
+                  </p>
+                </div>
+              )}
+              {localOrder.print_preferences?.material && (
+                <div>
+                  <p className="text-slate-400 text-xs mb-0.5">Material</p>
+                  <p className="font-semibold text-[#0B1F4D]">
+                    {localOrder.print_preferences.material}
+                  </p>
+                </div>
+              )}
+              {localOrder.print_preferences?.color && (
+                <div>
+                  <p className="text-slate-400 text-xs mb-0.5">Color</p>
+                  <p className="font-semibold text-[#0B1F4D]">
+                    {localOrder.print_preferences.color}
+                  </p>
+                </div>
+              )}
+              {localOrder.print_preferences?.infill && (
+                <div>
+                  <p className="text-slate-400 text-xs mb-0.5">Infill Density</p>
+                  <p className="font-semibold text-[#0B1F4D]">
+                    {localOrder.print_preferences.infill}
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Purchase-specific details */}
+          {localOrder.order_type === "purchase" && (
             <>
               {productName && (
                 <div>
@@ -115,27 +194,27 @@ function OrderDetail({
                   <p className="font-semibold text-[#0B1F4D]">{productName}</p>
                 </div>
               )}
-              {order.quantity > 1 && (
+              {localOrder.quantity > 1 && (
                 <div>
                   <p className="text-slate-400 text-xs mb-0.5">Quantity</p>
                   <p className="font-semibold text-[#0B1F4D]">
-                    {order.quantity}
+                    {localOrder.quantity}
                   </p>
                 </div>
               )}
-              {order.total_amount && (
+              {localOrder.total_amount && (
                 <div>
                   <p className="text-slate-400 text-xs mb-0.5">Total Paid</p>
                   <p className="font-bold text-[#0B1F4D]">
-                    {formatPrice(order.total_amount)}
+                    {formatPrice(localOrder.total_amount)}
                   </p>
                 </div>
               )}
-              {order.delivery_city && (
+              {localOrder.delivery_city && (
                 <div>
                   <p className="text-slate-400 text-xs mb-0.5">Delivery</p>
                   <p className="font-semibold text-[#0B1F4D]">
-                    {order.delivery_city}, {order.delivery_state}
+                    {localOrder.delivery_city}, {localOrder.delivery_state}
                   </p>
                 </div>
               )}
@@ -143,29 +222,86 @@ function OrderDetail({
           )}
         </div>
 
-        {/* Invoice download — only shown when released */}
-        {order.invoice_released && (
-          <div className="mt-4 pt-4 border-t border-[#e2e8f0]">
-            <Button
-              onClick={handleDownloadInvoice}
-              loading={fetchingInvoice}
-              variant="outline"
-              size="sm"
-              icon={<Download className="h-4 w-4" />}
-              id="download-invoice-btn"
-            >
-              Download Invoice
-            </Button>
+        {/* Action row: Invoice and Cancellation Request */}
+        <div className="mt-6 pt-4 border-t border-[#e2e8f0] flex flex-wrap gap-3 items-center justify-between">
+          <div>
+            {localOrder.invoice_released && (
+              <Button
+                onClick={handleDownloadInvoice}
+                loading={fetchingInvoice}
+                variant="outline"
+                size="sm"
+                icon={<Download className="h-4 w-4" />}
+                id="download-invoice-btn"
+              >
+                Download Invoice
+              </Button>
+            )}
+          </div>
+
+          <div>
+            {/* Show Request Cancellation button if applicable */}
+            {!localOrder.cancellation_requested &&
+              localOrder.status !== "Cancelled" &&
+              localOrder.status !== "Shipped" &&
+              localOrder.status !== "Completed" && (
+                <Button
+                  onClick={() => setShowCancelModal(true)}
+                  variant="ghost"
+                  size="sm"
+                  className="text-[#C41E2C] hover:bg-red-50 font-bold"
+                  id="request-cancellation-btn"
+                >
+                  Request Cancellation
+                </Button>
+              )}
+          </div>
+        </div>
+
+        {/* Cancellation request pending warning */}
+        {localOrder.cancellation_requested && localOrder.status !== "Cancelled" && (
+          <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5">
+            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-800">
+              <p className="font-bold">Cancellation Request Pending</p>
+              <p className="text-xs text-amber-700 mt-1">
+                You have requested a cancellation for this order. Reason: "{localOrder.cancellation_requested_reason}"
+              </p>
+            </div>
           </div>
         )}
 
-        {/* Cancellation reason */}
-        {order.status === "Cancelled" && order.cancellation_reason && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-            <strong>Cancellation reason:</strong> {order.cancellation_reason}
+        {/* Finalized cancellation reason */}
+        {localOrder.status === "Cancelled" && localOrder.cancellation_reason && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <strong>Cancellation reason:</strong> {localOrder.cancellation_reason}
           </div>
         )}
       </div>
+
+      {/* Inline Feedback Form */}
+      {(localOrder.status === "Completed" || localOrder.status === "Shipped") && localOrder.feedback_token && (
+        <div className="space-y-4">
+          {localOrder.has_submitted_feedback ? (
+            <div
+              className="bg-white rounded-2xl border border-[#e2e8f0] p-6 text-center flex flex-col items-center justify-center gap-2"
+              style={{ boxShadow: "var(--shadow-card)" }}
+            >
+              <CheckCircle className="h-10 w-10 text-green-500" />
+              <h4 className="font-black text-[#0B1F4D]">Thank you for your feedback!</h4>
+              <p className="text-xs text-slate-500 max-w-md">
+                You have successfully shared your experience for this order. We appreciate your support.
+              </p>
+            </div>
+          ) : (
+            <FeedbackForm
+              token={localOrder.feedback_token}
+              customerName={localOrder.customer_name}
+              trackingId={localOrder.tracking_id}
+            />
+          )}
+        </div>
+      )}
 
       {/* Status timeline */}
       <div
@@ -175,8 +311,60 @@ function OrderDetail({
         <h3 className="text-base font-black text-[#0B1F4D] mb-6">
           Order Progress
         </h3>
-        <StatusTimeline status={order.status} orderType={order.order_type} />
+        <StatusTimeline status={localOrder.status} orderType={localOrder.order_type} />
       </div>
+
+      {/* Cancellation request Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative border border-slate-100">
+            <button
+              onClick={() => setShowCancelModal(false)}
+              className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:text-[#0B1F4D] hover:bg-slate-100 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <h2 className="text-lg font-black text-[#0B1F4D] mb-1">Request Order Cancellation</h2>
+            <p className="text-xs text-slate-500 mb-4">
+              Please explain why you would like to cancel your order. Our team will review your request.
+            </p>
+
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Provide a clear reason (minimum 10 characters)..."
+              rows={4}
+              id="cancellation-request-reason-textarea"
+              className="w-full px-4 py-3 rounded-xl border border-[#e2e8f0] text-sm text-[#0B1F4D] focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 resize-none mb-3"
+            />
+            <p className="text-[10px] text-slate-400 mb-4">
+              Minimum 10 characters. ({cancelReason.length}/500)
+            </p>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setShowCancelModal(false)}
+                variant="outline"
+                size="sm"
+                className="flex-1"
+              >
+                Close
+              </Button>
+              <Button
+                onClick={handleRequestCancellation}
+                loading={loadingCancel}
+                disabled={cancelReason.trim().length < 10}
+                variant="accent"
+                size="sm"
+                className="flex-1"
+              >
+                Submit Request
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

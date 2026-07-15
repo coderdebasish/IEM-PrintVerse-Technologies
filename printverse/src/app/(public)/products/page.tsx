@@ -38,7 +38,7 @@ export default async function ProductsPage({
     .order("created_at", { ascending: false });
 
   if (activeCategory) {
-    query = query.eq("category", activeCategory);
+    query = query.or(`category.eq.${activeCategory},categories.cs.{${activeCategory}}`);
   }
 
   const { data: products, error } = await query;
