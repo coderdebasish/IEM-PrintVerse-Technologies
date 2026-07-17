@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 const TEAM = [
   {
     name: "Debasish Mohanty",
-    role: "Founder & Lead Developer",
-    expertise: "Full-Stack Engineering · Business Strategy",
+    role: "CEO Founder & Lead Developer",
+    expertise: "3D Printing Technology · Business Strategy",
     phone: "+91 8101 206 698",
     initials: "DM",
     highlight: true,

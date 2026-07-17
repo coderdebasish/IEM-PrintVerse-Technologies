@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   const service = createServiceClient();
   const { data, error } = await service.storage
-    .from("stl-uploads")
+    .from("stl-files")
     .createSignedUrl(path, 900); // 15 min
 
   if (error || !data?.signedUrl)

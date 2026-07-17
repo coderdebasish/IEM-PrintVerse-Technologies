@@ -60,8 +60,8 @@ async function validateSTLFile(file: File): Promise<string | null> {
     return "File is empty. Please select a valid STL file.";
   }
 
-  // Byte-sniff: read first 80 bytes to detect STL type
-  const buffer = await file.slice(0, 80).arrayBuffer();
+  // Byte-sniff: read first 84 bytes to detect STL type
+  const buffer = await file.slice(0, 84).arrayBuffer();
   const bytes = new Uint8Array(buffer);
   const header = new TextDecoder().decode(bytes.slice(0, 6)).toLowerCase();
   const isTextSTL = header.startsWith("solid");

@@ -43,7 +43,7 @@ export async function submitQuote(
 
       const fileName = `${Date.now()}-${formData.stlFileName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
       const { data: uploadData, error: uploadError } = await serviceClient.storage
-        .from("stl-uploads")
+        .from("stl-files")
         .upload(fileName, buffer, {
           contentType: "model/stl",
           upsert: false,
