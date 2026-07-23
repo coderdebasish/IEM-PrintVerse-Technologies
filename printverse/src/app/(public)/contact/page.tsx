@@ -256,25 +256,47 @@ export default function ContactPage() {
           </div>
 
           {/* Mentors */}
-          <div className="bg-white rounded-2xl border border-[#e2e8f0] p-7" style={{ boxShadow: "var(--shadow-card)" }}>
-            <h2 className="font-black text-[#0B1F4D] text-lg mb-5">Our Mentors</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {MENTORS.map((m) => (
-                <div key={m.name} className="text-center p-4 bg-[#f8f9fb] rounded-xl border border-[#e2e8f0]">
-                  <div className="h-12 w-12 rounded-full bg-[#0B1F4D] flex items-center justify-center mx-auto mb-3">
-                    <span className="text-[#D4A017] font-black text-lg">
-                      {m.name.split(" ").find((w) => /^[A-Z]/.test(w) && w.length > 2)?.[0] || m.name[0]}
-                    </span>
+          <div className="bg-white rounded-2xl border border-[#e2e8f0] p-7 sm:p-8" style={{ boxShadow: "var(--shadow-card)" }}>
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="font-black text-[#0B1F4D] text-xl">Our Mentors</h2>
+                <p className="text-slate-500 text-xs mt-0.5">Guided by experienced academic & industry experts</p>
+              </div>
+              <div className="h-1 flex-1 bg-gradient-to-r from-transparent via-[#D4A017]/20 to-transparent mx-6 hidden sm:block" />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {MENTORS.map((m) => {
+                const initials = m.name.split(" ").find((w) => /^[A-Z]/.test(w) && w.length > 2)?.[0] || m.name[0];
+                return (
+                  <div 
+                    key={m.name} 
+                    className="group relative text-center p-6 bg-gradient-to-b from-[#fcfdfd] to-[#f8f9fb] rounded-2xl border border-[#e2e8f0] transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-[#D4A017]/30"
+                  >
+                    {/* Top Accent Line */}
+                    <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-transparent via-[#0B1F4D]/20 to-transparent group-hover:via-[#D4A017] transition-all duration-300" />
+                    
+                    {/* Initial Circle */}
+                    <div className="h-14 w-14 rounded-2xl bg-[#0B1F4D] flex items-center justify-center mx-auto mb-4 transition-transform duration-300 group-hover:scale-110 shadow-md group-hover:shadow-[#0B1F4D]/10">
+                      <span className="text-[#D4A017] font-black text-xl tracking-wide">
+                        {initials}
+                      </span>
+                    </div>
+
+                    <p className="text-sm font-black text-[#0B1F4D] leading-snug group-hover:text-[#C41E2C] transition-colors duration-300">
+                      {m.name}
+                    </p>
+                    <p className="text-xs font-semibold text-[#D4A017] mt-1.5 px-2.5 py-0.5 bg-[#D4A017]/10 rounded-full inline-block">
+                      {m.role}
+                    </p>
                   </div>
-                  <p className="text-xs font-bold text-[#0B1F4D] leading-snug">{m.name}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{m.role}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
-
         </div>
       </section>
     </div>
   );
 }
+
