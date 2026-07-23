@@ -11,39 +11,58 @@ export const metadata: Metadata = {
 const TEAM = [
   {
     name: "Debasish Mohanty",
-    role: "CEO Founder & Lead Developer",
-    expertise: "3D Printing Technology · Business Strategy",
+    shortRole: "CEO",
+    fullRole: "Founder & Chief Executive Officer",
+    expertise: "Business Strategy · 3D Printing Technology · Full-Stack Development",
     phone: "+91 8101 206 698",
     initials: "DM",
-    highlight: true,
+    isFounder: true,
+    accent: "#D4A017",
+  },
+  {
+    name: "Suchana Saha",
+    shortRole: "CDO",
+    fullRole: "Chief Design Officer",
+    expertise: "Creative Direction · Brand Identity · Visual Design",
+    initials: "SS",
+    isFounder: false,
+    accent: "#7C3AED",
   },
   {
     name: "Sounak Chakraborty",
-    role: "CAD Design Expert",
-    expertise: "3D Modelling · Product Design",
+    shortRole: "COO",
+    fullRole: "Chief Operations Officer",
+    expertise: "Operations Management · Workflow Optimization · Logistics",
     initials: "SC",
-    highlight: false,
+    isFounder: false,
+    accent: "#0891B2",
   },
   {
-    name: "Suchona Saha",
-    role: "CAD Design Expert",
-    expertise: "3D Modelling · Creative Design",
-    initials: "SS",
-    highlight: false,
+    name: "Shubham Giri",
+    shortRole: "CRIO",
+    fullRole: "Chief Research & Innovation Officer",
+    expertise: "R&D Strategy · Material Science · Innovation Pipelines",
+    initials: "SG",
+    isFounder: false,
+    accent: "#059669",
   },
   {
     name: "Aitihya Mondal",
-    role: "CAD Design Expert",
-    expertise: "3D Modelling · Prototype Engineering",
+    shortRole: "CTO",
+    fullRole: "Chief Technology Officer",
+    expertise: "Hardware Engineering · Firmware · Prototype Development",
     initials: "AM",
-    highlight: false,
+    isFounder: false,
+    accent: "#EA580C",
   },
   {
     name: "Soumik Nath",
-    role: "CAD Design Expert",
-    expertise: "3D Modelling · Technical Design",
+    shortRole: "CMBDO",
+    fullRole: "Chief Marketing & Business Development Officer",
+    expertise: "Growth Strategy · Client Relations · Market Expansion",
     initials: "SN",
-    highlight: false,
+    isFounder: false,
+    accent: "#DB2777",
   },
 ];
 
@@ -124,49 +143,115 @@ export default function ContactPage() {
             </div>
           </div>
 
-          {/* Student Entrepreneurs */}
+          {/* Meet the Team */}
           <div>
-            <div className="text-center mb-6">
+            <div className="text-center mb-8">
               <div className="ribbon-badge inline-flex mb-3">Student Entrepreneurs · IEM Kolkata</div>
               <h2 className="text-2xl font-black text-[#0B1F4D]">Meet the Team</h2>
               <p className="text-slate-500 text-sm mt-1">Powered by passion, precision, and innovation</p>
             </div>
+
+            {/* ── 3×2 Unified Team Grid ── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {TEAM.map((member) => (
-                <div key={member.name}
-                  className={[
-                    "bg-white rounded-2xl border p-6 flex flex-col gap-4",
-                    member.highlight ? "border-[#D4A017] ring-2 ring-[#D4A017]/20" : "border-[#e2e8f0]",
-                  ].join(" ")}
-                  style={{ boxShadow: "var(--shadow-card)" }}>
-                  <div className="flex items-center gap-4">
-                    <div className={[
-                      "h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 text-lg font-black",
-                      member.highlight ? "bg-[#D4A017] text-[#0B1F4D]" : "bg-[#0B1F4D] text-[#D4A017]",
-                    ].join(" ")}>
-                      {member.initials}
-                    </div>
-                    <div>
-                      <p className="font-black text-[#0B1F4D] text-sm leading-snug">{member.name}</p>
-                      <p className="text-xs text-[#C41E2C] font-semibold mt-0.5">{member.role}</p>
-                      {member.highlight && (
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <Star className="h-3 w-3 fill-[#D4A017] text-[#D4A017]" />
-                          <span className="text-xs text-[#D4A017] font-bold">Founder</span>
+              {TEAM.map((member) =>
+                member.isFounder ? (
+                  /* Founder card — dark navy treatment */
+                  <div
+                    key={member.name}
+                    className="relative bg-[#0B1F4D] rounded-2xl p-5 flex flex-col gap-3 overflow-hidden"
+                    style={{ boxShadow: "0 8px 28px rgba(11,31,77,0.22)" }}
+                  >
+                    {/* Decorative circle */}
+                    <div
+                      className="pointer-events-none absolute -top-8 -right-8 h-36 w-36 rounded-full opacity-10"
+                      style={{ background: "#D4A017" }}
+                    />
+                    {/* Avatar + name row */}
+                    <div className="flex items-center gap-3 relative z-10">
+                      <div
+                        className="h-14 w-14 rounded-xl flex items-center justify-center shrink-0 text-lg font-black"
+                        style={{ background: "#D4A017", color: "#0B1F4D" }}
+                      >
+                        {member.initials}
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-black text-white text-sm leading-snug">{member.name}</span>
+                          <span
+                            className="text-[10px] font-black px-2 py-0.5 rounded-full"
+                            style={{ background: "#D4A017", color: "#0B1F4D" }}
+                          >
+                            {member.shortRole}
+                          </span>
                         </div>
-                      )}
+                        <p className="text-xs font-semibold mt-0.5" style={{ color: "#D4A017" }}>
+                          {member.fullRole}
+                        </p>
+                      </div>
+                    </div>
+                    {/* Expertise */}
+                    <p className="text-xs text-slate-400 leading-relaxed relative z-10">{member.expertise}</p>
+                    {/* Phone */}
+                    {member.phone && (
+                      <a
+                        href={`tel:${member.phone.replace(/\s/g, "")}`}
+                        className="flex items-center gap-1.5 text-xs font-bold text-white hover:text-[#D4A017] transition-colors relative z-10"
+                      >
+                        <span
+                          className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0"
+                          style={{ background: "rgba(212,160,23,0.18)" }}
+                        >
+                          <Phone className="h-3 w-3" style={{ color: "#D4A017" }} />
+                        </span>
+                        {member.phone}
+                      </a>
+                    )}
+                    {/* Tagline */}
+                    <div className="flex items-center gap-1 relative z-10">
+                      <Star className="h-3 w-3 fill-[#D4A017] text-[#D4A017]" />
+                      <span className="text-[10px] font-bold tracking-wide" style={{ color: "#D4A017" }}>
+                        Founder · Visionary · Builder
+                      </span>
                     </div>
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed flex-1">{member.expertise}</p>
-                  {member.phone && (
-                    <a href={`tel:${member.phone.replace(/\s/g, "")}`}
-                      className="flex items-center gap-1.5 text-xs text-[#0B1F4D] font-semibold hover:text-[#C41E2C] transition-colors">
-                      <Phone className="h-3.5 w-3.5" />
-                      {member.phone}
-                    </a>
-                  )}
-                </div>
-              ))}
+                ) : (
+                  /* C-Suite card — white with accent left border */
+                  <div
+                    key={member.name}
+                    className="bg-white rounded-2xl border border-[#e2e8f0] p-5 flex flex-col gap-3"
+                    style={{
+                      boxShadow: "var(--shadow-card)",
+                      borderLeft: `4px solid ${member.accent}`,
+                    }}
+                  >
+                    {/* Avatar + name row */}
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="h-14 w-14 rounded-xl flex items-center justify-center shrink-0 text-base font-black"
+                        style={{ background: `${member.accent}18`, color: member.accent }}
+                      >
+                        {member.initials}
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-black text-[#0B1F4D] text-sm leading-snug">{member.name}</span>
+                          <span
+                            className="text-[10px] font-black px-2 py-0.5 rounded-full"
+                            style={{ background: `${member.accent}18`, color: member.accent }}
+                          >
+                            {member.shortRole}
+                          </span>
+                        </div>
+                        <p className="text-xs font-semibold mt-0.5" style={{ color: member.accent }}>
+                          {member.fullRole}
+                        </p>
+                      </div>
+                    </div>
+                    {/* Expertise */}
+                    <p className="text-xs text-slate-500 leading-relaxed">{member.expertise}</p>
+                  </div>
+                )
+              )}
             </div>
           </div>
 
@@ -187,6 +272,7 @@ export default function ContactPage() {
               ))}
             </div>
           </div>
+
         </div>
       </section>
     </div>
