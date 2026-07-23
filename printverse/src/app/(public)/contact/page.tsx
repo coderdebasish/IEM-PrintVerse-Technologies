@@ -20,10 +20,10 @@ const TEAM = [
     accent: "#D4A017",
   },
   {
-    name: "Suchana Saha",
+    name: "Suchona Saha",
     shortRole: "CDO",
     fullRole: "Chief Design Officer",
-    expertise: "Creative Direction · Brand Identity · Visual Design",
+    expertise: "Product Design, CAD/3D Modeling, Branding, and UI/UX",
     initials: "SS",
     isFounder: false,
     accent: "#7C3AED",
@@ -269,13 +269,13 @@ export default function ContactPage() {
               {MENTORS.map((m) => {
                 const initials = m.name.split(" ").find((w) => /^[A-Z]/.test(w) && w.length > 2)?.[0] || m.name[0];
                 return (
-                  <div 
-                    key={m.name} 
+                  <div
+                    key={m.name}
                     className="group relative text-center p-6 bg-gradient-to-b from-[#fcfdfd] to-[#f8f9fb] rounded-2xl border border-[#e2e8f0] transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-[#D4A017]/30"
                   >
                     {/* Top Accent Line */}
                     <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-transparent via-[#0B1F4D]/20 to-transparent group-hover:via-[#D4A017] transition-all duration-300" />
-                    
+
                     {/* Initial Circle */}
                     <div className="h-14 w-14 rounded-2xl bg-[#0B1F4D] flex items-center justify-center mx-auto mb-4 transition-transform duration-300 group-hover:scale-110 shadow-md group-hover:shadow-[#0B1F4D]/10">
                       <span className="text-[#D4A017] font-black text-xl tracking-wide">
