@@ -218,7 +218,7 @@ export default function ContactPage() {
                   /* C-Suite card — white with accent left border */
                   <div
                     key={member.name}
-                    className="bg-white rounded-2xl border border-[#e2e8f0] p-5 flex flex-col gap-3"
+                    className="bg-white rounded-2xl border border-[#e2e8f0] p-5 flex flex-col gap-3 card-hover"
                     style={{
                       boxShadow: "var(--shadow-card)",
                       borderLeft: `4px solid ${member.accent}`,
@@ -271,7 +271,7 @@ export default function ContactPage() {
                 return (
                   <div
                     key={m.name}
-                    className="group relative text-center p-6 bg-gradient-to-b from-[#fcfdfd] to-[#f8f9fb] rounded-2xl border border-[#e2e8f0] transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-[#D4A017]/30"
+                    className="group relative text-center p-6 bg-gradient-to-b from-[#fcfdfd] to-[#f8f9fb] rounded-2xl border border-[#e2e8f0] transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-[#D4A017]/30 card-hover"
                   >
                     {/* Top Accent Line */}
                     <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-transparent via-[#0B1F4D]/20 to-transparent group-hover:via-[#D4A017] transition-all duration-300" />
