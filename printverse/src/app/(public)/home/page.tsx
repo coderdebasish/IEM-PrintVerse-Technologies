@@ -162,30 +162,44 @@ export default async function HomePage() {
       <InteractiveHero />
 
       {/* ── Why PrintVerse ───────────────────────────────────────────────── */}
-      <section id="why-us" className="section-padding bg-white">
+      <section id="why-us" className="section-padding bg-gradient-to-b from-[#ffffff] to-[#f8f9fb]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
+          <div className="text-center mb-16">
             <p className="text-[#C41E2C] font-bold text-sm uppercase tracking-widest mb-2">
               Why Choose Us
             </p>
             <h2 className="text-3xl sm:text-4xl font-black text-[#0B1F4D]">
-              Printing You Can Trust
+              Premium 3D Printing, Simplified
             </h2>
+            <div className="h-1 w-16 bg-[#D4A017] mx-auto mt-4 rounded-full" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {WHY_US.map(({ icon: Icon, title, desc }) => (
-              <div
-                key={title}
-                className="card-hover rounded-2xl p-7 border border-[#e2e8f0] bg-[#f8f9fb] flex flex-col items-start gap-4"
-                style={{ boxShadow: "var(--shadow-card)" }}
-              >
-                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0B1F4D]">
-                  <Icon className="h-6 w-6 text-[#D4A017]" />
-                </span>
-                <h3 className="font-bold text-[#0B1F4D] text-lg">{title}</h3>
-                <p className="text-[#64748b] text-sm leading-relaxed">{desc}</p>
-              </div>
-            ))}
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {WHY_US.map(({ icon: Icon, title, desc }, idx) => {
+              // Accent colors for each why-us card to create a premium feel
+              const colors = [
+                { border: "hover:border-[#D4A017]", iconBg: "bg-[#D4A017]/10", iconColor: "text-[#D4A017]" },
+                { border: "hover:border-[#7C3AED]", iconBg: "bg-[#7C3AED]/10", iconColor: "text-[#7C3AED]" },
+                { border: "hover:border-[#0891B2]", iconBg: "bg-[#0891B2]/10", iconColor: "text-[#0891B2]" },
+                { border: "hover:border-[#C41E2C]", iconBg: "bg-[#C41E2C]/10", iconColor: "text-[#C41E2C]" }
+              ];
+              const style = colors[idx % colors.length];
+              return (
+                <div
+                  key={title}
+                  className={`group card-hover rounded-2xl p-8 border border-[#e2e8f0] bg-white flex flex-col items-start gap-5 transition-all duration-300 ${style.border}`}
+                  style={{ boxShadow: "var(--shadow-card)" }}
+                >
+                  <span className={`flex h-14 w-14 items-center justify-center rounded-2xl ${style.iconBg} transition-transform duration-300 group-hover:scale-110`}>
+                    <Icon className={`h-7 w-7 ${style.iconColor}`} />
+                  </span>
+                  <div>
+                    <h3 className="font-black text-[#0B1F4D] text-lg group-hover:text-[#0B1F4D]/90">{title}</h3>
+                    <p className="text-[#64748b] text-sm leading-relaxed mt-2">{desc}</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -193,39 +207,46 @@ export default async function HomePage() {
       {/* ── Categories ───────────────────────────────────────────────────── */}
       <section id="categories" className="section-padding bg-[#f8f9fb]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
+          <div className="text-center mb-16">
             <p className="text-[#C41E2C] font-bold text-sm uppercase tracking-widest mb-2">
               Our Catalog
             </p>
             <h2 className="text-3xl sm:text-4xl font-black text-[#0B1F4D]">
-              Shop by Category
+              Explore by Category
             </h2>
+            <div className="h-1 w-16 bg-[#C41E2C] mx-auto mt-4 rounded-full" />
           </div>
+          
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {CATEGORIES.map(({ name, icon, desc, slug }) => (
               <Link
                 key={slug}
                 href={`/products?category=${slug}`}
                 id={`category-${slug.toLowerCase()}`}
-                className="group card-hover rounded-2xl p-7 bg-white border border-[#e2e8f0] flex flex-col gap-3"
+                className="group card-hover rounded-2xl p-8 bg-white border border-[#e2e8f0] flex flex-col gap-4 hover:border-[#D4A017]/30 transition-all duration-300"
                 style={{ boxShadow: "var(--shadow-card)" }}
               >
-                <span className="text-4xl">{icon}</span>
-                <h3 className="font-bold text-[#0B1F4D] text-lg group-hover:text-[#C41E2C] transition-colors">
-                  {name}
-                </h3>
-                <p className="text-[#64748b] text-sm leading-relaxed">{desc}</p>
-                <span className="mt-auto inline-flex items-center gap-1 text-[#C41E2C] text-sm font-semibold">
-                  View Products <ChevronRight className="h-4 w-4" />
+                <div className="h-14 w-14 rounded-2xl bg-[#0B1F4D]/5 flex items-center justify-center text-3xl transition-transform duration-300 group-hover:scale-110 shrink-0">
+                  {icon}
+                </div>
+                <div>
+                  <h3 className="font-black text-[#0B1F4D] text-lg group-hover:text-[#C41E2C] transition-colors">
+                    {name}
+                  </h3>
+                  <p className="text-[#64748b] text-sm leading-relaxed mt-2">{desc}</p>
+                </div>
+                <span className="mt-auto inline-flex items-center gap-1.5 text-[#C41E2C] text-sm font-bold pt-2">
+                  View Products{" "}
+                  <ChevronRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                 </span>
               </Link>
             ))}
           </div>
-          <div className="mt-10 text-center">
+          <div className="mt-12 text-center">
             <Link
               href="/products"
               id="all-products-link"
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-[#0B1F4D] text-white font-bold hover:bg-[#1a3a7a] transition-colors"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-[#0B1F4D] text-white font-black hover:bg-[#1a3a7a] transition-all shadow-md hover:shadow-lg"
             >
               View All Products <ArrowRight className="h-5 w-5" />
             </Link>
@@ -236,48 +257,72 @@ export default async function HomePage() {
       {/* ── Pricing Banner ───────────────────────────────────────────────── */}
       <section
         id="pricing"
-        className="bg-pricing-gradient text-white py-20 overflow-hidden relative"
+        className="bg-pricing-gradient text-white py-24 overflow-hidden relative"
       >
         <div
-          className="absolute inset-0 opacity-10"
+          className="absolute inset-0 opacity-15"
           style={{
             backgroundImage:
               "radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)",
             backgroundSize: "32px 32px",
           }}
         />
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-white/70 font-bold text-sm uppercase tracking-widest mb-3">
-            Simple Pricing
-          </p>
-          <h2 className="text-4xl sm:text-5xl font-black mb-4">
-            Just{" "}
-            <span className="text-[#D4A017]" style={{ fontSize: "3.5rem" }}>
-              ₹4
-            </span>{" "}
-            per gram
-          </h2>
-          <p className="text-white/80 text-lg mb-2">
-            Minimum order: 50 grams (₹200). No setup fees. No surprises.
-          </p>
-          <p className="text-white/60 text-sm mb-10">
-            Delivery charges calculated at checkout based on pincode.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/quote"
-              id="pricing-cta-quote"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-white text-[#C41E2C] font-black hover:bg-[#f8f9fb] transition-colors shadow-lg"
-            >
-              Get My Quote <ArrowRight className="h-5 w-5" />
-            </Link>
-            <Link
-              href="/products"
-              id="pricing-cta-products"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl border-2 border-white/40 text-white font-bold hover:bg-white/10 transition-colors"
-            >
-              Shop Catalog <ChevronRight className="h-5 w-5" />
-            </Link>
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl p-8 sm:p-12 text-center shadow-2xl relative overflow-hidden">
+            {/* Glow accent */}
+            <div className="absolute -top-24 -left-24 w-48 h-48 rounded-full bg-[#D4A017]/30 blur-3xl pointer-events-none" />
+            
+            <p className="text-white/80 font-bold text-sm uppercase tracking-widest mb-3">
+              Simple & Transparent Pricing
+            </p>
+            
+            <h2 className="text-4xl sm:text-6xl font-black mb-6 leading-tight">
+              Just{" "}
+              <span className="text-[#D4A017] inline-block font-black relative px-4 drop-shadow-[0_2px_15px_rgba(212,160,23,0.3)]">
+                ₹4
+              </span>{" "}
+              per gram
+            </h2>
+            
+            <p className="text-white/90 text-lg max-w-2xl mx-auto mb-8 font-semibold">
+              Minimum order: 50 grams (₹200). No setup fees. No hidden costs.
+            </p>
+
+            {/* Checkmark benefits grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto mb-10 text-left border-t border-white/10 pt-8">
+              {[
+                "Flat rate ₹4/g pricing",
+                "Zero machine setup fee",
+                "Industrial-grade quality",
+                "Secure Razorpay checkout"
+              ].map((benefit) => (
+                <div key={benefit} className="flex items-center gap-2 text-white/90 text-xs font-bold">
+                  <CheckCircle2 className="h-4 w-4 text-[#D4A017] shrink-0" />
+                  <span>{benefit}</span>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-white/60 text-xs mb-8">
+              Delivery charges calculated at checkout based on delivery location pincode.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href="/quote"
+                id="pricing-cta-quote"
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-white text-[#C41E2C] font-black hover:bg-slate-100 transition-all shadow-lg hover:shadow-[0_8px_20px_rgba(255,255,255,0.15)]"
+              >
+                Get My Quote <ArrowRight className="h-5 w-5" />
+              </Link>
+              <Link
+                href="/products"
+                id="pricing-cta-products"
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-xl border-2 border-white/30 text-white font-bold hover:bg-white/10 hover:border-white/60 transition-colors"
+              >
+                Shop Catalog <ChevronRight className="h-5 w-5" />
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -285,37 +330,48 @@ export default async function HomePage() {
       {/* ── How It Works ─────────────────────────────────────────────────── */}
       <section id="how-it-works" className="section-padding bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
+          <div className="text-center mb-16">
             <p className="text-[#C41E2C] font-bold text-sm uppercase tracking-widest mb-2">
               The Process
             </p>
             <h2 className="text-3xl sm:text-4xl font-black text-[#0B1F4D]">
               How It Works
             </h2>
+            <div className="h-1 w-16 bg-[#D4A017] mx-auto mt-4 rounded-full" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {STEPS.map(({ no, icon: Icon, title, desc }, idx) => (
-              <div key={no} className="relative flex flex-col items-center text-center gap-4">
-                {/* Connector line */}
+              <div 
+                key={no} 
+                className="group relative flex flex-col items-start p-7 bg-[#f8f9fb] border border-[#e2e8f0] rounded-2xl card-hover transition-all duration-300"
+                style={{ boxShadow: "var(--shadow-card)" }}
+              >
+                {/* Connector line (large screens) */}
                 {idx < STEPS.length - 1 && (
-                  <div className="hidden lg:block absolute top-8 left-[calc(50%+3rem)] w-[calc(100%-6rem)] h-0.5 bg-gradient-to-r from-[#e2e8f0] to-[#0B1F4D]/20" />
+                  <div className="hidden lg:block absolute top-12 left-[calc(100%-1rem)] w-8 h-0.5 bg-gradient-to-r from-[#e2e8f0] to-[#0B1F4D]/20 z-10" />
                 )}
-                <div className="relative z-10 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0B1F4D] shadow-lg">
-                  <Icon className="h-7 w-7 text-[#D4A017]" />
-                  <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#C41E2C] text-white text-xs font-black">
-                    {no.slice(-1)}
-                  </span>
+                
+                {/* Background Large Faded Number */}
+                <span className="absolute right-6 top-4 text-5xl font-black text-slate-200/50 select-none group-hover:text-[#D4A017]/20 transition-colors">
+                  {no}
+                </span>
+
+                <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-xl bg-[#0B1F4D] shadow-md group-hover:scale-105 transition-transform duration-300">
+                  <Icon className="h-6 w-6 text-[#D4A017]" />
                 </div>
-                <h3 className="font-bold text-[#0B1F4D] text-base">{title}</h3>
-                <p className="text-[#64748b] text-sm leading-relaxed">{desc}</p>
+                
+                <h3 className="font-black text-[#0B1F4D] text-lg mt-6">{title}</h3>
+                <p className="text-[#64748b] text-sm leading-relaxed mt-2">{desc}</p>
               </div>
             ))}
           </div>
+          
           <div className="mt-12 text-center">
             <Link
               href="/quote"
               id="how-it-works-cta"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-[#C41E2C] text-white font-bold hover:bg-[#a01824] transition-colors shadow-md"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-[#C41E2C] text-white font-black hover:bg-[#a01824] transition-all shadow-md hover:shadow-lg"
             >
               Start My Order <ArrowRight className="h-5 w-5" />
             </Link>
@@ -326,22 +382,29 @@ export default async function HomePage() {
       {/* ── Testimonials ─────────────────────────────────────────────────── */}
       <section id="testimonials" className="section-padding bg-[#f8f9fb]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
+          <div className="text-center mb-16">
             <p className="text-[#C41E2C] font-bold text-sm uppercase tracking-widest mb-2">
               What Customers Say
             </p>
             <h2 className="text-3xl sm:text-4xl font-black text-[#0B1F4D]">
-              Trusted by Makers & Dreamers
+              Trusted by Makers & Creators
             </h2>
+            <div className="h-1 w-16 bg-[#C41E2C] mx-auto mt-4 rounded-full" />
           </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {testimonials.map(({ name, role, text, rating }) => (
               <div
                 key={name}
-                className="rounded-2xl p-7 bg-white border border-[#e2e8f0] flex flex-col gap-4"
-                style={{ boxShadow: "var(--shadow-card)" }}
+                className="group relative rounded-2xl p-8 bg-white border border-[#e2e8f0] flex flex-col gap-5 card-hover hover:border-[#D4A017]/20 transition-all duration-300"
+                style={{ boxShadow: "var(--shadow-card)", borderLeft: "4px solid #D4A017" }}
               >
-                <div className="flex gap-0.5">
+                {/* Background quotes mark */}
+                <div className="absolute right-6 top-4 text-7xl font-black text-slate-100 select-none pointer-events-none group-hover:text-[#D4A017]/10 transition-colors">
+                  “
+                </div>
+
+                <div className="flex gap-1 relative z-10">
                   {Array.from({ length: rating }).map((_, i) => (
                     <Star
                       key={i}
@@ -349,16 +412,18 @@ export default async function HomePage() {
                     />
                   ))}
                 </div>
-                <p className="text-[#0B1F4D] text-sm leading-relaxed flex-1 italic">
+                
+                <p className="text-[#0B1F4D] text-sm leading-relaxed flex-1 italic relative z-10">
                   "{text}"
                 </p>
-                <div className="flex items-center gap-3 pt-2 border-t border-[#e2e8f0]">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0B1F4D] text-white font-bold text-sm">
+                
+                <div className="flex items-center gap-3 pt-4 border-t border-[#e2e8f0] relative z-10">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0B1F4D] text-[#D4A017] font-black text-base shadow-sm">
                     {name[0]}
                   </span>
                   <div>
-                    <p className="font-bold text-[#0B1F4D] text-sm">{name}</p>
-                    <p className="text-[#64748b] text-xs">{role}</p>
+                    <p className="font-black text-[#0B1F4D] text-sm leading-snug">{name}</p>
+                    <p className="text-[#64748b] text-xs font-semibold mt-0.5">{role}</p>
                   </div>
                 </div>
               </div>
@@ -373,23 +438,22 @@ export default async function HomePage() {
         className="section-padding bg-hero-gradient text-white relative overflow-hidden"
       >
         <div
-          className="absolute inset-0 opacity-10"
+          className="absolute inset-0 opacity-15"
           style={{
             backgroundImage:
-              "linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)",
+              "linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px)",
             backgroundSize: "40px 40px",
           }}
         />
-        <div className="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <CheckCircle2 className="mx-auto h-14 w-14 text-[#D4A017] mb-6" />
-          <h2 className="text-3xl sm:text-4xl font-black mb-4 text-white">
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center z-10">
+          <CheckCircle2 className="mx-auto h-16 w-16 text-[#D4A017] mb-6 drop-shadow-[0_2px_10px_rgba(212,160,23,0.3)] animate-bounce" style={{ animationDuration: '3s' }} />
+          <h2 className="text-3xl sm:text-5xl font-black mb-6 text-white leading-tight">
             Ready to Build Something Real?
           </h2>
-          <p className="text-slate-300 text-lg mb-10 leading-relaxed">
-            Whether it's a prototype, a gift, or a passion project — PrintVerse
-            brings your ideas off the screen and into your hands.
+          <p className="text-slate-300 text-base sm:text-lg mb-10 leading-relaxed max-w-2xl mx-auto">
+            Whether it's a high-precision engineering prototype, a custom cultural gift, or a personal passion project — PrintVerse brings your ideas off the screen and into your hands.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link
               href="/quote"
               id="final-cta-quote"
@@ -410,3 +474,4 @@ export default async function HomePage() {
     </>
   );
 }
+
