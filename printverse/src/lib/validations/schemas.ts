@@ -5,13 +5,21 @@ import { isValidPhoneNumber } from "libphonenumber-js";
 
 export const printPreferencesSchema = z.object({
   material: z
-    .enum(["PLA", "ABS", "PETG", "Resin", "Not Sure"])
-    .optional(),
+    .preprocess(
+      (val) => (val === "" || val === null ? undefined : val),
+      z.enum(["PLA", "ABS", "PETG", "Resin", "Not Sure"]).optional()
+    ),
   color: z.string().max(100).optional(),
-  infill: z.enum(["Standard", "High Strength", "Not Sure"]).optional(),
+  infill: z
+    .preprocess(
+      (val) => (val === "" || val === null ? undefined : val),
+      z.enum(["Standard", "High Strength", "Not Sure"]).optional()
+    ),
   finish: z
-    .enum(["Draft/Fast", "Standard", "Fine Detail", "Not Sure"])
-    .optional(),
+    .preprocess(
+      (val) => (val === "" || val === null ? undefined : val),
+      z.enum(["Draft/Fast", "Standard", "Fine Detail", "Not Sure"]).optional()
+    ),
   quantity: z.coerce.number().int().min(1).max(1000).optional(),
 });
 

@@ -109,3 +109,47 @@ export interface Setting {
   key: string;
   value: string;
 }
+
+// ─── Quotation & Invoice System ───────────────────────────────────────────────
+
+export interface QuotationItem {
+  description: string;
+  qty: number;
+  rate: number;
+  amount: number; // qty * rate, auto-calculated
+}
+
+export type DiscountType = "none" | "percentage" | "fixed";
+export type DocType = "quotation" | "invoice";
+
+export interface Quotation {
+  id: string;
+  order_id: string;
+  tracking_id: string;
+  // Editable customer info
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  customer_address: string | null;
+  // Document metadata
+  quotation_number: string;       // QT-XXXXXX
+  issue_date: string;             // ISO date string
+  valid_until: string | null;     // ISO date string
+  // Line items
+  items: QuotationItem[];
+  // Financials
+  subtotal: number;
+  discount_type: DiscountType;
+  discount_value: number;
+  discount_amount: number;
+  total: number;
+  // Notes / terms
+  notes: string | null;
+  // Storage paths in "invoices" bucket
+  quotation_pdf_path: string | null;  // quotations/QT-XXXXXX.pdf
+  invoice_pdf_path: string | null;    // invoices/INV-XXXXXX.pdf
+  // Stage
+  doc_type: DocType; // "quotation" = editable, "invoice" = locked
+  created_at: string;
+  updated_at: string;
+}

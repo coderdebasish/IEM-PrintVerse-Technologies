@@ -255,7 +255,9 @@ export function QuoteForm() {
 
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={handleSubmit(onSubmit, () => {
+        toast.error("Please fill in all required fields correctly before submitting.");
+      })}
       noValidate
       className="space-y-6"
     >

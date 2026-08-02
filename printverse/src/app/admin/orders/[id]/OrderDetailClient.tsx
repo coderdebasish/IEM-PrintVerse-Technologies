@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowLeft, Copy, ExternalLink, CheckCircle2, Phone,
-  FileText, XCircle, DollarSign, Download, Star, MessageSquare, AlertTriangle,
+  XCircle, DollarSign, Download, Star, MessageSquare, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,10 +15,11 @@ import { Button } from "@/components/ui/Button";
 import { formatDate, formatPrice } from "@/lib/utils/helpers";
 import {
   updateOrderStatus, setQuotedPrice, generatePaymentLink,
-  markConfirmedViaCall, cancelOrder, releaseInvoice,
+  markConfirmedViaCall, cancelOrder,
   sendFeedbackRequest, toggleFeedbackApproval, toggleFeedbackPublish,
 } from "./actions";
-import type { Order, OrderStatus, Feedback } from "@/types";
+import { QuotationBuilder } from "./QuotationBuilder";
+import type { Order, OrderStatus, Feedback, Quotation } from "@/types";
 
 const QUOTE_STATUSES: OrderStatus[] = [
   "Requested","Contacted","Quoted","Payment Pending","Paid",
@@ -34,7 +35,13 @@ type OrderWithProduct = Order & {
   feedback: Feedback[] | null;
 };
 
-export function OrderDetailClient({ order: initialOrder }: { order: OrderWithProduct }) {
+export function OrderDetailClient({
+  order: initialOrder,
+  initialQuotation,
+}: {
+  order: OrderWithProduct;
+  initialQuotation: Quotation | null;
+}) {
   const [order, setOrder] = useState(initialOrder);
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -99,14 +106,6 @@ export function OrderDetailClient({ order: initialOrder }: { order: OrderWithPro
       return res;
     });
 
-  // ── Release invoice ──────────────────────────────────────────────────────
-  const handleReleaseInvoice = () =>
-    run("invoice", async () => {
-      const res = await releaseInvoice(order.id);
-      if (res.success)
-        applyUpdate({ invoice_released: true, invoice_released_at: new Date().toISOString(), status: "Invoice Sent" });
-      return res;
-    });
 
   // ── Cancellation modal ───────────────────────────────────────────────────
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -405,71 +404,40 @@ export function OrderDetailClient({ order: initialOrder }: { order: OrderWithPro
             </Card>
           )}
 
-          {/* Purchase: confirm via call + invoice */}
+          {/* Purchase: confirm via call */}
           {!isQuote && (
-            <>
-              <Card title="Confirmation Call">
-                {order.confirmed_via_call ? (
-                  <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
-                    <CheckCircle2 className="h-5 w-5" />
-                    Confirmed via call
-                    {order.confirmed_at && (
-                      <span className="text-xs text-slate-400 font-normal ml-1">
-                        {formatDate(order.confirmed_at)}
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <Button
-                      onClick={handleConfirmCall}
-                      loading={loading === "confirm"}
-                      variant="primary"
-                      size="sm"
-                      className="w-full"
-                      icon={<Phone className="h-4 w-4" />}
-                      id="mark-confirmed-btn"
-                    >
-                      Mark Confirmed via Call
-                    </Button>
-                    <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                      Call the customer to verify their order before printing. Tap above once confirmed.
-                    </p>
-                  </>
-                )}
-              </Card>
-
-              <Card title="Invoice">
-                {order.invoice_released ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
-                      <FileText className="h-4 w-4" />
-                      Invoice released
-                    </div>
-                    <p className="text-xs text-slate-400">{order.invoice_released_at && formatDate(order.invoice_released_at)}</p>
-                  </div>
-                ) : (
+            <Card title="Confirmation Call">
+              {order.confirmed_via_call ? (
+                <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
+                  <CheckCircle2 className="h-5 w-5" />
+                  Confirmed via call
+                  {order.confirmed_at && (
+                    <span className="text-xs text-slate-400 font-normal ml-1">
+                      {formatDate(order.confirmed_at)}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <>
                   <Button
-                    onClick={handleReleaseInvoice}
-                    loading={loading === "invoice"}
-                    disabled={!order.confirmed_via_call}
-                    variant="gold"
+                    onClick={handleConfirmCall}
+                    loading={loading === "confirm"}
+                    variant="primary"
                     size="sm"
                     className="w-full"
-                    icon={<FileText className="h-4 w-4" />}
-                    id="release-invoice-btn"
+                    icon={<Phone className="h-4 w-4" />}
+                    id="mark-confirmed-btn"
                   >
-                    Release Invoice
+                    Mark Confirmed via Call
                   </Button>
-                )}
-                {!order.confirmed_via_call && (
-                  <p className="text-xs text-[#C41E2C] font-semibold mt-2">
-                    ⚠ Confirm via call first
+                  <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                    Call the customer to verify their order before printing.
                   </p>
-                )}
-              </Card>
-            </>
+                </>
+              )}
+            </Card>
           )}
+
 
           {/* Cancellation info */}
           {order.status === "Cancelled" && order.cancellation_reason && (
@@ -626,7 +594,14 @@ export function OrderDetailClient({ order: initialOrder }: { order: OrderWithPro
         </div>
       </div>
 
-      {/* Cancel modal */}
+      {/* Quotation & Invoice Builder — full width below the grid */}
+      {order.status !== "Requested" && (
+        <QuotationBuilder
+          order={order}
+          initialQuotation={initialQuotation}
+        />
+      )}
+
       {showCancelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-fade-in">

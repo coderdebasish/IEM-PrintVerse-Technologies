@@ -29,6 +29,15 @@ const TEAM = [
     accent: "#7C3AED",
   },
   {
+    name: "Subarna De",
+    shortRole: "CCO",
+    fullRole: "Chief Creative Officer",
+    expertise: "Creative Direction · Visual Branding · Media & Content Strategy",
+    initials: "SD",
+    isFounder: false,
+    accent: "#E11D48",
+  },
+  {
     name: "Sounak Chakraborty",
     shortRole: "COO",
     fullRole: "Chief Operations Officer",
@@ -151,108 +160,125 @@ export default function ContactPage() {
               <p className="text-slate-500 text-sm mt-1">Powered by passion, precision, and innovation</p>
             </div>
 
-            {/* ── 3×2 Unified Team Grid ── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {TEAM.map((member) =>
-                member.isFounder ? (
-                  /* Founder card — dark navy treatment */
-                  <div
-                    key={member.name}
-                    className="relative bg-[#0B1F4D] rounded-2xl p-5 flex flex-col gap-3 overflow-hidden"
-                    style={{ boxShadow: "0 8px 28px rgba(11,31,77,0.22)" }}
-                  >
-                    {/* Decorative circle */}
-                    <div
-                      className="pointer-events-none absolute -top-8 -right-8 h-36 w-36 rounded-full opacity-10"
-                      style={{ background: "#D4A017" }}
-                    />
-                    {/* Avatar + name row */}
-                    <div className="flex items-center gap-3 relative z-10">
+            {/* ── Featured Founder & CEO Card ── */}
+            {(() => {
+              const founder = TEAM.find((m) => m.isFounder);
+              const execs = TEAM.filter((m) => !m.isFounder);
+              return (
+                <>
+                  {founder && (
+                    <div className="max-w-xl mx-auto mb-8">
                       <div
-                        className="h-14 w-14 rounded-xl flex items-center justify-center shrink-0 text-lg font-black"
-                        style={{ background: "#D4A017", color: "#0B1F4D" }}
+                        className="relative bg-[#0B1F4D] rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-5 overflow-hidden text-center sm:text-left"
+                        style={{ boxShadow: "0 10px 32px rgba(11,31,77,0.25)" }}
                       >
-                        {member.initials}
-                      </div>
-                      <div>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="font-black text-white text-sm leading-snug">{member.name}</span>
-                          <span
-                            className="text-[10px] font-black px-2 py-0.5 rounded-full"
-                            style={{ background: "#D4A017", color: "#0B1F4D" }}
-                          >
-                            {member.shortRole}
-                          </span>
-                        </div>
-                        <p className="text-xs font-semibold mt-0.5" style={{ color: "#D4A017" }}>
-                          {member.fullRole}
-                        </p>
-                      </div>
-                    </div>
-                    {/* Expertise */}
-                    <p className="text-xs text-slate-400 leading-relaxed relative z-10">{member.expertise}</p>
-                    {/* Phone */}
-                    {member.phone && (
-                      <a
-                        href={`tel:${member.phone.replace(/\s/g, "")}`}
-                        className="flex items-center gap-1.5 text-xs font-bold text-white hover:text-[#D4A017] transition-colors relative z-10"
-                      >
-                        <span
-                          className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0"
-                          style={{ background: "rgba(212,160,23,0.18)" }}
+                        {/* Decorative background accent */}
+                        <div
+                          className="pointer-events-none absolute -top-12 -right-12 h-44 w-44 rounded-full opacity-15"
+                          style={{ background: "#D4A017" }}
+                        />
+
+                        {/* Avatar */}
+                        <div
+                          className="h-20 w-20 rounded-2xl flex items-center justify-center shrink-0 text-2xl font-black shadow-md"
+                          style={{ background: "#D4A017", color: "#0B1F4D" }}
                         >
-                          <Phone className="h-3 w-3" style={{ color: "#D4A017" }} />
-                        </span>
-                        {member.phone}
-                      </a>
-                    )}
-                    {/* Tagline */}
-                    <div className="flex items-center gap-1 relative z-10">
-                      <Star className="h-3 w-3 fill-[#D4A017] text-[#D4A017]" />
-                      <span className="text-[10px] font-bold tracking-wide" style={{ color: "#D4A017" }}>
-                        Founder · Visionary · Builder
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  /* C-Suite card — white with accent left border */
-                  <div
-                    key={member.name}
-                    className="bg-white rounded-2xl border border-[#e2e8f0] p-5 flex flex-col gap-3 card-hover"
-                    style={{
-                      boxShadow: "var(--shadow-card)",
-                      borderLeft: `4px solid ${member.accent}`,
-                    }}
-                  >
-                    {/* Avatar + name row */}
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="h-14 w-14 rounded-xl flex items-center justify-center shrink-0 text-base font-black"
-                        style={{ background: `${member.accent}18`, color: member.accent }}
-                      >
-                        {member.initials}
+                          {founder.initials}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 space-y-1.5 relative z-10">
+                          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                            <span className="font-black text-white text-lg leading-snug">
+                              {founder.name}
+                            </span>
+                            <span
+                              className="text-xs font-black px-2.5 py-0.5 rounded-full"
+                              style={{ background: "#D4A017", color: "#0B1F4D" }}
+                            >
+                              {founder.shortRole}
+                            </span>
+                          </div>
+                          <p className="text-xs font-bold" style={{ color: "#D4A017" }}>
+                            {founder.fullRole}
+                          </p>
+                          <p className="text-xs text-slate-300 leading-relaxed">
+                            {founder.expertise}
+                          </p>
+
+                          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 pt-1">
+                            {founder.phone && (
+                              <a
+                                href={`tel:${founder.phone.replace(/\s/g, "")}`}
+                                className="flex items-center gap-1.5 text-xs font-bold text-white hover:text-[#D4A017] transition-colors"
+                              >
+                                <span
+                                  className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0"
+                                  style={{ background: "rgba(212,160,23,0.2)" }}
+                                >
+                                  <Phone className="h-3 w-3" style={{ color: "#D4A017" }} />
+                                </span>
+                                {founder.phone}
+                              </a>
+                            )}
+                            <div className="flex items-center gap-1">
+                              <Star className="h-3 w-3 fill-[#D4A017] text-[#D4A017]" />
+                              <span className="text-[11px] font-bold tracking-wide" style={{ color: "#D4A017" }}>
+                                Founder &amp; Leader
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="font-black text-[#0B1F4D] text-sm leading-snug">{member.name}</span>
-                          <span
-                            className="text-[10px] font-black px-2 py-0.5 rounded-full"
+                    </div>
+                  )}
+
+                  {/* ── 3×2 Balanced Executive Team Grid ── */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {execs.map((member) => (
+                      <div
+                        key={member.name}
+                        className="bg-white rounded-2xl border border-[#e2e8f0] p-5 flex flex-col justify-between gap-3 card-hover"
+                        style={{
+                          boxShadow: "var(--shadow-card)",
+                          borderLeft: `4px solid ${member.accent}`,
+                        }}
+                      >
+                        {/* Avatar + name row */}
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0 text-base font-black"
                             style={{ background: `${member.accent}18`, color: member.accent }}
                           >
-                            {member.shortRole}
-                          </span>
+                            {member.initials}
+                          </div>
+                          <div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-black text-[#0B1F4D] text-sm leading-snug">
+                                {member.name}
+                              </span>
+                              <span
+                                className="text-[10px] font-black px-2 py-0.5 rounded-full"
+                                style={{ background: `${member.accent}18`, color: member.accent }}
+                              >
+                                {member.shortRole}
+                              </span>
+                            </div>
+                            <p className="text-xs font-semibold mt-0.5" style={{ color: member.accent }}>
+                              {member.fullRole}
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-xs font-semibold mt-0.5" style={{ color: member.accent }}>
-                          {member.fullRole}
+                        {/* Expertise */}
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          {member.expertise}
                         </p>
                       </div>
-                    </div>
-                    {/* Expertise */}
-                    <p className="text-xs text-slate-500 leading-relaxed">{member.expertise}</p>
+                    ))}
                   </div>
-                )
-              )}
-            </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* Mentors */}

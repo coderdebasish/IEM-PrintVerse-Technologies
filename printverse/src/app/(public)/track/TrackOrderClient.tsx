@@ -38,9 +38,22 @@ interface MinimalOrder {
   created_at: string;
 }
 
-// ── Invoice download helper ────────────────────────────────────────────────
+// ── Document download helpers ─────────────────────────────────────────────
 
-async function getInvoiceSignedUrl(trackingId: string): Promise<string | null> {
+async function getDocumentSignedUrl(
+  trackingId: string,
+  type: "quotation" | "invoice"
+): Promise<string | null> {
+  const res = await fetch(
+    `/api/quotation-url?tracking_id=${trackingId}&type=${type}`
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.url ?? null;
+}
+
+// Legacy invoice URL (for old purchase orders without quotation system)
+async function getLegacyInvoiceUrl(trackingId: string): Promise<string | null> {
   const res = await fetch(`/api/invoice-url?tracking_id=${trackingId}`);
   if (!res.ok) return null;
   const data = await res.json();
@@ -59,26 +72,56 @@ function OrderDetail({
   onBack?: () => void;
 }) {
   const [localOrder, setLocalOrder] = useState<Order>(order);
-  const [fetchingInvoice, setFetchingInvoice] = useState(false);
+  const [fetchingDoc, setFetchingDoc] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [loadingCancel, setLoadingCancel] = useState(false);
+  // Quotation / Invoice state
+  const [docType, setDocType] = useState<"quotation" | "invoice" | null>(null);
 
   useEffect(() => {
     setLocalOrder(order);
   }, [order]);
 
-  const handleDownloadInvoice = async () => {
-    setFetchingInvoice(true);
+  // Detect if a quotation or invoice exists for this order
+  useEffect(() => {
+    let cancelled = false;
+    async function detectDoc() {
+      // Try invoice first
+      const invRes = await fetch(
+        `/api/quotation-url?tracking_id=${order.tracking_id}&type=invoice`
+      );
+      if (!cancelled && invRes.ok) {
+        setDocType("invoice");
+        return;
+      }
+      // Try quotation
+      const qtRes = await fetch(
+        `/api/quotation-url?tracking_id=${order.tracking_id}&type=quotation`
+      );
+      if (!cancelled && qtRes.ok) {
+        setDocType("quotation");
+      }
+    }
+    detectDoc();
+    return () => { cancelled = true; };
+  }, [order.tracking_id]);
+
+  const handleDownloadDoc = async (type: "quotation" | "invoice") => {
+    setFetchingDoc(true);
     try {
-      const url = await getInvoiceSignedUrl(localOrder.tracking_id);
+      let url = await getDocumentSignedUrl(localOrder.tracking_id, type);
+      // Fallback to legacy invoice URL for old orders
+      if (!url && localOrder.invoice_released) {
+        url = await getLegacyInvoiceUrl(localOrder.tracking_id);
+      }
       if (url) {
         window.open(url, "_blank");
       } else {
-        toast.error("Unable to fetch invoice. Please try again.");
+        toast.error("Unable to fetch document. Please try again.");
       }
     } finally {
-      setFetchingInvoice(false);
+      setFetchingDoc(false);
     }
   };
 
@@ -222,17 +265,43 @@ function OrderDetail({
           )}
         </div>
 
-        {/* Action row: Invoice and Cancellation Request */}
+        {/* Action row: Documents and Cancellation */}
         <div className="mt-6 pt-4 border-t border-[#e2e8f0] flex flex-wrap gap-3 items-center justify-between">
-          <div>
-            {localOrder.invoice_released && (
+          <div className="flex gap-2 flex-wrap">
+            {/* New quotation/invoice download buttons */}
+            {docType === "quotation" && (
               <Button
-                onClick={handleDownloadInvoice}
-                loading={fetchingInvoice}
+                onClick={() => handleDownloadDoc("quotation")}
+                loading={fetchingDoc}
                 variant="outline"
                 size="sm"
                 icon={<Download className="h-4 w-4" />}
+                id="download-quotation-btn"
+              >
+                Download Quotation
+              </Button>
+            )}
+            {docType === "invoice" && (
+              <Button
+                onClick={() => handleDownloadDoc("invoice")}
+                loading={fetchingDoc}
+                variant="primary"
+                size="sm"
+                icon={<Download className="h-4 w-4" />}
                 id="download-invoice-btn"
+              >
+                Download Invoice
+              </Button>
+            )}
+            {/* Legacy invoice fallback (old purchase orders) */}
+            {!docType && localOrder.invoice_released && (
+              <Button
+                onClick={() => handleDownloadDoc("invoice")}
+                loading={fetchingDoc}
+                variant="outline"
+                size="sm"
+                icon={<Download className="h-4 w-4" />}
+                id="download-invoice-legacy-btn"
               >
                 Download Invoice
               </Button>

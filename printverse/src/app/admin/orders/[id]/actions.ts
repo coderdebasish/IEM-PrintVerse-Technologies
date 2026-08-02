@@ -5,13 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import Razorpay from "razorpay";
 import { sendEmail } from "@/lib/email";
-import { generateInvoicePDF } from "@/lib/invoice/generateInvoicePDF";
-import type { OrderStatus } from "@/types";
+import { generateDocumentPDF } from "@/lib/invoice/generateDocumentPDF";
+import type { OrderStatus, Quotation, QuotationItem, DiscountType } from "@/types";
 
 // ─── Guard: verify admin session ─────────────────────────────────────────────
 async function requireAdmin() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
   return user;
 }
@@ -38,6 +40,15 @@ export async function updateOrderStatus(
     .single();
 
   if (error) return { success: false, error: error.message };
+
+  // When admin marks as "Paid" → auto-convert quotation to invoice
+  if (newStatus === "Paid" || newStatus === "Payment Received") {
+    try {
+      await convertToInvoice(orderId);
+    } catch (e) {
+      console.error("Auto-invoice conversion error (non-blocking):", e);
+    }
+  }
 
   // Fire-and-forget status update email
   try {
@@ -92,12 +103,13 @@ export async function generatePaymentLink(
   if (fetchError || !order) return { success: false, error: "Order not found." };
 
   const amount =
-    order.order_type === "quote"
-      ? order.quoted_price
-      : order.total_amount;
+    order.order_type === "quote" ? order.quoted_price : order.total_amount;
 
   if (!amount || amount <= 0)
-    return { success: false, error: "Amount not set. Set price before generating link." };
+    return {
+      success: false,
+      error: "Amount not set. Set price before generating link.",
+    };
 
   const rzp = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID!,
@@ -113,8 +125,12 @@ export async function generatePaymentLink(
       email: order.email,
       contact: order.phone,
     },
-    notify: { sms: false, email: false }, // we handle emails
-    notes: { order_id: orderId, tracking_id: order.tracking_id, order_type: order.order_type },
+    notify: { sms: false, email: false },
+    notes: {
+      order_id: orderId,
+      tracking_id: order.tracking_id,
+      order_type: order.order_type,
+    },
     callback_url: `${process.env.NEXT_PUBLIC_SITE_URL}/track`,
     callback_method: "get",
   });
@@ -148,7 +164,10 @@ export async function cancelOrder(
 ): Promise<{ success: boolean; error?: string }> {
   await requireAdmin();
   if (!reason.trim() || reason.trim().length < 10)
-    return { success: false, error: "Cancellation reason must be at least 10 characters." };
+    return {
+      success: false,
+      error: "Cancellation reason must be at least 10 characters.",
+    };
 
   const service = createServiceClient();
   const { data: order, error } = await service
@@ -179,65 +198,289 @@ export async function cancelOrder(
   return { success: true };
 }
 
-// ─── Release invoice (purchase flow) ─────────────────────────────────────────
-export async function releaseInvoice(
+// ─── Quotation CRUD ───────────────────────────────────────────────────────────
+
+export interface QuotationFormData {
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  customer_address: string;
+  issue_date: string;
+  valid_until: string;
+  items: QuotationItem[];
+  discount_type: DiscountType;
+  discount_value: number;
+  notes: string;
+}
+
+function calculateFinancials(
+  items: QuotationItem[],
+  discountType: DiscountType,
+  discountValue: number
+) {
+  const subtotal = items.reduce((sum, item) => sum + item.qty * item.rate, 0);
+  let discountAmount = 0;
+  if (discountType === "percentage") {
+    discountAmount = (subtotal * discountValue) / 100;
+  } else if (discountType === "fixed") {
+    discountAmount = Math.min(discountValue, subtotal);
+  }
+  const total = subtotal - discountAmount;
+  const itemsWithAmount = items.map((item) => ({
+    ...item,
+    amount: item.qty * item.rate,
+  }));
+  return { subtotal, discountAmount, total, itemsWithAmount };
+}
+
+/** Fetch the existing quotation for an order (returns null if none) */
+export async function getQuotation(
   orderId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<Quotation | null> {
+  await requireAdmin();
+  const service = createServiceClient();
+  const { data } = await service
+    .from("quotations")
+    .select("*")
+    .eq("order_id", orderId)
+    .maybeSingle();
+  return (data as Quotation) ?? null;
+}
+
+/** Create a brand-new quotation, generate PDF, upload to storage */
+export async function createQuotation(
+  orderId: string,
+  formData: QuotationFormData
+): Promise<{ success: boolean; quotation?: Quotation; error?: string }> {
   await requireAdmin();
   const service = createServiceClient();
 
-  const { data: order, error: fetchError } = await service
+  // Fetch order for tracking_id
+  const { data: order, error: oErr } = await service
     .from("orders")
-    .select("*, products(name, price)")
+    .select("tracking_id, email, customer_name")
     .eq("id", orderId)
     .single();
+  if (oErr || !order) return { success: false, error: "Order not found." };
 
-  if (fetchError || !order)
-    return { success: false, error: "Order not found." };
+  const { subtotal, discountAmount, total, itemsWithAmount } =
+    calculateFinancials(
+      formData.items,
+      formData.discount_type,
+      formData.discount_value
+    );
 
-  if (!order.confirmed_via_call)
-    return {
-      success: false,
-      error: "Cannot release invoice before confirming via call.",
+  const quotationNumber = `QT-${order.tracking_id}`;
+
+  const quotationPayload: Omit<Quotation, "id" | "created_at" | "updated_at"> =
+    {
+      order_id: orderId,
+      tracking_id: order.tracking_id,
+      customer_name: formData.customer_name,
+      customer_email: formData.customer_email,
+      customer_phone: formData.customer_phone,
+      customer_address: formData.customer_address || null,
+      quotation_number: quotationNumber,
+      issue_date: formData.issue_date,
+      valid_until: formData.valid_until || null,
+      items: itemsWithAmount,
+      subtotal,
+      discount_type: formData.discount_type,
+      discount_value: formData.discount_value,
+      discount_amount: discountAmount,
+      total,
+      notes: formData.notes || null,
+      quotation_pdf_path: null,
+      invoice_pdf_path: null,
+      doc_type: "quotation",
     };
 
+  // Insert quotation row
+  const { data: newQuotation, error: insertErr } = await service
+    .from("quotations")
+    .insert(quotationPayload)
+    .select()
+    .single();
+
+  if (insertErr || !newQuotation)
+    return { success: false, error: insertErr?.message ?? "Insert failed." };
+
   // Generate PDF
-  let pdfBuffer: Buffer;
-  try {
-    pdfBuffer = await generateInvoicePDF(order);
-  } catch (e) {
-    console.error("PDF generation error:", e);
-    return { success: false, error: "Failed to generate invoice PDF." };
-  }
+  const pdfBuffer = await generateDocumentPDF(newQuotation as Quotation);
 
-  // Upload to invoices bucket
-  const fileName = `invoice-${order.tracking_id}-${Date.now()}.pdf`;
-  const { error: uploadError } = await service.storage
+  // Upload to storage
+  const pdfPath = `quotations/QT-${order.tracking_id}.pdf`;
+  const { error: uploadErr } = await service.storage
     .from("invoices")
-    .upload(fileName, pdfBuffer, { contentType: "application/pdf" });
-
-  if (uploadError)
-    return { success: false, error: "Failed to upload invoice: " + uploadError.message };
-
-  // Update order
-  const { error: updateError } = await service.from("orders").update({
-    invoice_released: true,
-    invoice_url: fileName,
-    invoice_released_at: new Date().toISOString(),
-    status: "Invoice Sent",
-  }).eq("id", orderId);
-
-  if (updateError)
-    return { success: false, error: updateError.message };
-
-  // Email invoice
-  try {
-    await sendEmail({
-      to: order.email,
-      subject: `Your PrintVerse Invoice — Order #${order.tracking_id}`,
-      html: invoiceEmailHtml({ customer_name: order.customer_name, tracking_id: order.tracking_id }),
-      attachments: [{ filename: `PrintVerse-Invoice-${order.tracking_id}.pdf`, content: pdfBuffer }],
+    .upload(pdfPath, pdfBuffer, {
+      contentType: "application/pdf",
+      upsert: true,
     });
+
+  if (uploadErr)
+    return { success: false, error: "PDF upload failed: " + uploadErr.message };
+
+  // Update row with PDF path
+  const { data: updatedQuotation, error: updateErr } = await service
+    .from("quotations")
+    .update({ quotation_pdf_path: pdfPath })
+    .eq("id", newQuotation.id)
+    .select()
+    .single();
+
+  if (updateErr)
+    return { success: false, error: updateErr.message };
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  return { success: true, quotation: updatedQuotation as Quotation };
+}
+
+/** Update existing quotation, re-generate PDF, replace in storage */
+export async function updateQuotation(
+  quotationId: string,
+  orderId: string,
+  formData: QuotationFormData
+): Promise<{ success: boolean; quotation?: Quotation; error?: string }> {
+  await requireAdmin();
+  const service = createServiceClient();
+
+  const { data: existing, error: fetchErr } = await service
+    .from("quotations")
+    .select("*")
+    .eq("id", quotationId)
+    .single();
+
+  if (fetchErr || !existing)
+    return { success: false, error: "Quotation not found." };
+  if ((existing as Quotation).doc_type === "invoice")
+    return { success: false, error: "Invoice cannot be edited." };
+
+  const { subtotal, discountAmount, total, itemsWithAmount } =
+    calculateFinancials(
+      formData.items,
+      formData.discount_type,
+      formData.discount_value
+    );
+
+  const updatePayload = {
+    customer_name: formData.customer_name,
+    customer_email: formData.customer_email,
+    customer_phone: formData.customer_phone,
+    customer_address: formData.customer_address || null,
+    issue_date: formData.issue_date,
+    valid_until: formData.valid_until || null,
+    items: itemsWithAmount,
+    subtotal,
+    discount_type: formData.discount_type,
+    discount_value: formData.discount_value,
+    discount_amount: discountAmount,
+    total,
+    notes: formData.notes || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data: updatedQuotation, error: updateErr } = await service
+    .from("quotations")
+    .update(updatePayload)
+    .eq("id", quotationId)
+    .select()
+    .single();
+
+  if (updateErr || !updatedQuotation)
+    return { success: false, error: updateErr?.message ?? "Update failed." };
+
+  // Re-generate PDF
+  const pdfBuffer = await generateDocumentPDF(updatedQuotation as Quotation);
+
+  // Upsert (replace) in storage
+  const pdfPath = `quotations/QT-${(existing as Quotation).tracking_id}.pdf`;
+  const { error: uploadErr } = await service.storage
+    .from("invoices")
+    .upload(pdfPath, pdfBuffer, {
+      contentType: "application/pdf",
+      upsert: true,
+    });
+
+  if (uploadErr)
+    return { success: false, error: "PDF upload failed: " + uploadErr.message };
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  return { success: true, quotation: updatedQuotation as Quotation };
+}
+
+/** Convert existing quotation → Invoice PDF. Called automatically when status = "Paid". */
+export async function convertToInvoice(
+  orderId: string
+): Promise<{ success: boolean; error?: string }> {
+  const service = createServiceClient();
+
+  const { data: quotation, error: fetchErr } = await service
+    .from("quotations")
+    .select("*")
+    .eq("order_id", orderId)
+    .maybeSingle();
+
+  if (fetchErr || !quotation) return { success: false, error: "No quotation found for this order." };
+  if ((quotation as Quotation).doc_type === "invoice") return { success: true }; // Already converted
+
+  // Build invoice quotation object
+  const invoiceData: Quotation = {
+    ...(quotation as Quotation),
+    doc_type: "invoice",
+    issue_date: new Date().toISOString().split("T")[0],
+  };
+
+  // Generate invoice PDF
+  const pdfBuffer = await generateDocumentPDF(invoiceData);
+
+  // Upload invoice PDF
+  const invoicePath = `invoices/INV-${(quotation as Quotation).tracking_id}.pdf`;
+  const { error: uploadErr } = await service.storage
+    .from("invoices")
+    .upload(invoicePath, pdfBuffer, {
+      contentType: "application/pdf",
+      upsert: true,
+    });
+
+  if (uploadErr)
+    return { success: false, error: "Invoice PDF upload failed: " + uploadErr.message };
+
+  // Update quotation row
+  const { error: updateErr } = await service
+    .from("quotations")
+    .update({
+      doc_type: "invoice",
+      invoice_pdf_path: invoicePath,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", (quotation as Quotation).id);
+
+  if (updateErr) return { success: false, error: updateErr.message };
+
+  // Email the customer
+  try {
+    const { data: order } = await service
+      .from("orders")
+      .select("email, customer_name, tracking_id")
+      .eq("id", orderId)
+      .single();
+
+    if (order) {
+      await sendEmail({
+        to: order.email,
+        subject: `Your PrintVerse Invoice — Order #${order.tracking_id}`,
+        html: invoiceEmailHtml({
+          customer_name: order.customer_name,
+          tracking_id: order.tracking_id,
+        }),
+        attachments: [
+          {
+            filename: `PrintVerse-Invoice-${order.tracking_id}.pdf`,
+            content: pdfBuffer,
+          },
+        ],
+      });
+    }
   } catch (e) {
     console.error("Invoice email error (non-blocking):", e);
   }
@@ -246,45 +489,34 @@ export async function releaseInvoice(
   return { success: true };
 }
 
+// ─── Legacy releaseInvoice (kept for purchase orders without quotation) ────────
+export async function releaseInvoice(
+  orderId: string
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  // If a quotation exists, just convert it
+  const service = createServiceClient();
+  const { data: qt } = await service
+    .from("quotations")
+    .select("id")
+    .eq("order_id", orderId)
+    .maybeSingle();
 
-// ─── Email HTML builders ──────────────────────────────────────────────────────
+  if (qt) return convertToInvoice(orderId);
 
-function statusUpdateEmailHtml({ customer_name, tracking_id, newStatus }: { customer_name: string; tracking_id: string; newStatus: string }) {
-  return `<!DOCTYPE html><html><body style="font-family:Inter,Arial,sans-serif;background:#f8f9fb;padding:24px;">
-<div style="max-width:540px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;">
-<div style="background:#0B1F4D;padding:28px 32px;"><h1 style="color:#D4A017;font-size:20px;margin:0;font-weight:900;">PrintVerse Technologies</h1></div>
-<div style="padding:32px;">
-<p style="color:#0B1F4D;font-size:16px;">Hi <strong>${customer_name}</strong>,</p>
-<p style="color:#475569;font-size:14px;">Your order <strong style="color:#0B1F4D;">#${tracking_id}</strong> status has been updated to:</p>
-<div style="background:#0B1F4D;color:#D4A017;font-size:20px;font-weight:900;padding:16px 24px;border-radius:12px;margin:20px 0;text-align:center;">${newStatus}</div>
-<p style="color:#475569;font-size:13px;">Track your full order at <a href="${process.env.NEXT_PUBLIC_SITE_URL}/track" style="color:#C41E2C;">printverse.in/track</a> using your tracking ID.</p>
-</div>
-</div></body></html>`;
-}
+  // Fallback: mark invoice_released manually for old purchase orders
+  const { error } = await service
+    .from("orders")
+    .update({
+      invoice_released: true,
+      invoice_released_at: new Date().toISOString(),
+      status: "Invoice Sent",
+    })
+    .eq("id", orderId);
 
-function cancellationEmailHtml({ customer_name, tracking_id, reason }: { customer_name: string; tracking_id: string; reason: string }) {
-  return `<!DOCTYPE html><html><body style="font-family:Inter,Arial,sans-serif;background:#f8f9fb;padding:24px;">
-<div style="max-width:540px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;">
-<div style="background:#C41E2C;padding:28px 32px;"><h1 style="color:#fff;font-size:20px;margin:0;font-weight:900;">Order Cancelled — #${tracking_id}</h1></div>
-<div style="padding:32px;">
-<p style="color:#0B1F4D;font-size:16px;">Hi <strong>${customer_name}</strong>,</p>
-<p style="color:#475569;font-size:14px;">We regret to inform you that your order <strong>#${tracking_id}</strong> has been cancelled.</p>
-<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:12px;padding:16px;margin:20px 0;">
-<p style="color:#991b1b;font-size:13px;margin:0;"><strong>Reason:</strong> ${reason}</p>
-</div>
-<p style="color:#475569;font-size:13px;">If you paid for this order, please contact us on WhatsApp or email — refunds are processed through Razorpay within 5-7 business days.</p>
-</div></div></body></html>`;
-}
-
-function invoiceEmailHtml({ customer_name, tracking_id }: { customer_name: string; tracking_id: string }) {
-  return `<!DOCTYPE html><html><body style="font-family:Inter,Arial,sans-serif;background:#f8f9fb;padding:24px;">
-<div style="max-width:540px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;">
-<div style="background:#0B1F4D;padding:28px 32px;"><h1 style="color:#D4A017;font-size:20px;margin:0;font-weight:900;">PrintVerse Technologies</h1></div>
-<div style="padding:32px;">
-<p style="color:#0B1F4D;font-size:16px;">Hi <strong>${customer_name}</strong>,</p>
-<p style="color:#475569;font-size:14px;">Your invoice for order <strong>#${tracking_id}</strong> is attached to this email. Your order is confirmed and will move to printing shortly.</p>
-<p style="color:#475569;font-size:13px;">Track at <a href="${process.env.NEXT_PUBLIC_SITE_URL}/track" style="color:#C41E2C;">printverse.in/track</a></p>
-</div></div></body></html>`;
+  if (error) return { success: false, error: error.message };
+  revalidatePath(`/admin/orders/${orderId}`);
+  return { success: true };
 }
 
 // ─── Feedback System Actions ──────────────────────────────────────────────────
@@ -360,4 +592,66 @@ export async function toggleFeedbackPublish(
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/home");
   return { success: true };
+}
+
+// ─── Email HTML builders ──────────────────────────────────────────────────────
+
+function statusUpdateEmailHtml({
+  customer_name,
+  tracking_id,
+  newStatus,
+}: {
+  customer_name: string;
+  tracking_id: string;
+  newStatus: string;
+}) {
+  return `<!DOCTYPE html><html><body style="font-family:Inter,Arial,sans-serif;background:#f8f9fb;padding:24px;">
+<div style="max-width:540px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;">
+<div style="background:#0B1F4D;padding:28px 32px;"><h1 style="color:#D4A017;font-size:20px;margin:0;font-weight:900;">PrintVerse Technologies</h1></div>
+<div style="padding:32px;">
+<p style="color:#0B1F4D;font-size:16px;">Hi <strong>${customer_name}</strong>,</p>
+<p style="color:#475569;font-size:14px;">Your order <strong style="color:#0B1F4D;">#${tracking_id}</strong> status has been updated to:</p>
+<div style="background:#0B1F4D;color:#D4A017;font-size:20px;font-weight:900;padding:16px 24px;border-radius:12px;margin:20px 0;text-align:center;">${newStatus}</div>
+<p style="color:#475569;font-size:13px;">Track your full order at <a href="${process.env.NEXT_PUBLIC_SITE_URL}/track" style="color:#C41E2C;">printverse.in/track</a> using your tracking ID.</p>
+</div>
+</div></body></html>`;
+}
+
+function cancellationEmailHtml({
+  customer_name,
+  tracking_id,
+  reason,
+}: {
+  customer_name: string;
+  tracking_id: string;
+  reason: string;
+}) {
+  return `<!DOCTYPE html><html><body style="font-family:Inter,Arial,sans-serif;background:#f8f9fb;padding:24px;">
+<div style="max-width:540px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;">
+<div style="background:#C41E2C;padding:28px 32px;"><h1 style="color:#fff;font-size:20px;margin:0;font-weight:900;">Order Cancelled — #${tracking_id}</h1></div>
+<div style="padding:32px;">
+<p style="color:#0B1F4D;font-size:16px;">Hi <strong>${customer_name}</strong>,</p>
+<p style="color:#475569;font-size:14px;">We regret to inform you that your order <strong>#${tracking_id}</strong> has been cancelled.</p>
+<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:12px;padding:16px;margin:20px 0;">
+<p style="color:#991b1b;font-size:13px;margin:0;"><strong>Reason:</strong> ${reason}</p>
+</div>
+<p style="color:#475569;font-size:13px;">If you paid for this order, please contact us — refunds are processed within 5-7 business days.</p>
+</div></div></body></html>`;
+}
+
+function invoiceEmailHtml({
+  customer_name,
+  tracking_id,
+}: {
+  customer_name: string;
+  tracking_id: string;
+}) {
+  return `<!DOCTYPE html><html><body style="font-family:Inter,Arial,sans-serif;background:#f8f9fb;padding:24px;">
+<div style="max-width:540px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;">
+<div style="background:#0B1F4D;padding:28px 32px;"><h1 style="color:#D4A017;font-size:20px;margin:0;font-weight:900;">PrintVerse Technologies</h1></div>
+<div style="padding:32px;">
+<p style="color:#0B1F4D;font-size:16px;">Hi <strong>${customer_name}</strong>,</p>
+<p style="color:#475569;font-size:14px;">Your invoice for order <strong>#${tracking_id}</strong> is attached to this email. Your order is confirmed and will move to printing shortly.</p>
+<p style="color:#475569;font-size:13px;">Track at <a href="${process.env.NEXT_PUBLIC_SITE_URL}/track" style="color:#C41E2C;">printverse.in/track</a></p>
+</div></div></body></html>`;
 }
