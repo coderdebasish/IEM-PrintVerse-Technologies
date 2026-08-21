@@ -421,7 +421,7 @@ export async function generateDocumentPDF(quotation: Quotation): Promise<Buffer>
               <Text style={styles.companyName}>PrintVerse Technologies</Text>
               <Text style={styles.companyTagline}>Where Every Idea Takes Shape</Text>
               <Text style={styles.companyContact}>
-                IIFR Lab, IEM Kolkata · printverse.in
+                IIFR Lab, IEM Kolkata
               </Text>
             </View>
           </View>
@@ -473,7 +473,6 @@ export async function generateDocumentPDF(quotation: Quotation): Promise<Buffer>
             <Text style={styles.billName}>PrintVerse Technologies</Text>
             <Text style={styles.billDetail}>IIFR Lab, IEM Kolkata</Text>
             <Text style={styles.billDetail}>West Bengal, India</Text>
-            <Text style={styles.billDetail}>printverse.in</Text>
           </View>
         </View>
 
