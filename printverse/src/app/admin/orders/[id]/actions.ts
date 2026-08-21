@@ -710,3 +710,33 @@ function invoiceEmailHtml({
 <p style="color:#475569;font-size:13px;">Track at <a href="${process.env.NEXT_PUBLIC_SITE_URL}/track" style="color:#C41E2C;">printverse.in/track</a></p>
 </div></div></body></html>`;
 }
+
+// ─── Delete Order ─────────────────────────────────────────────────────────────
+export async function deleteOrder(
+  orderId: string,
+  securityPin: string
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  if (securityPin.trim() !== "191210") {
+    return { success: false, error: "Invalid Security PIN!" };
+  }
+
+  const service = createServiceClient();
+
+  // Delete linked records first to prevent foreign key errors
+  await service.from("feedback").delete().eq("order_id", orderId);
+  await service.from("quotations").delete().eq("order_id", orderId);
+
+  // Delete the order itself
+  const { error } = await service.from("orders").delete().eq("id", orderId);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/analytics");
+  revalidatePath(`/admin/orders/${orderId}`);
+  return { success: true };
+}
+

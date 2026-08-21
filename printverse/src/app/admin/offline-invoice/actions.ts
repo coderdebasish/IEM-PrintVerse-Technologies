@@ -252,3 +252,28 @@ export async function listOfflineDocuments(): Promise<OfflineInvoice[]> {
 
   return (data ?? []) as OfflineInvoice[];
 }
+
+// ─── Delete offline document ──────────────────────────────────────────────────
+
+export async function deleteOfflineDocument(
+  id: string,
+  securityPin: string
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  if (securityPin.trim() !== "191210") {
+    return { success: false, error: "Invalid Security PIN!" };
+  }
+
+  const service = createServiceClient();
+
+  const { error } = await service.from("offline_invoices").delete().eq("id", id);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/admin/offline-invoice");
+  revalidatePath("/admin/analytics");
+  return { success: true };
+}
+

@@ -3,19 +3,21 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Copy, ExternalLink, CheckCircle2, Phone,
-  XCircle, DollarSign, Download, Star, MessageSquare, AlertTriangle,
+  XCircle, DollarSign, Download, Star, MessageSquare, AlertTriangle, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { StatusBadge, OrderTypeBadge, Badge } from "@/components/ui/Badge";
 import { StatusTimeline } from "@/components/ui/StatusTimeline";
 import { Button } from "@/components/ui/Button";
+import { SecurityPinModal } from "@/components/admin/SecurityPinModal";
 import { formatDate, formatPrice } from "@/lib/utils/helpers";
 import {
   updateOrderStatus, setQuotedPrice, generatePaymentLink,
-  markConfirmedViaCall, cancelOrder,
+  markConfirmedViaCall, cancelOrder, deleteOrder,
   sendFeedbackRequest, toggleFeedbackApproval, toggleFeedbackPublish,
 } from "./actions";
 import { QuotationBuilder } from "./QuotationBuilder";
@@ -158,6 +160,19 @@ export function OrderDetailClient({
 
   const isQuote = order.order_type === "quote";
 
+  const router = useRouter();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const handleDeleteConfirm = async (pin: string) => {
+    const res = await deleteOrder(order.id, pin);
+    if (res.success) {
+      toast.success(`Order #${order.tracking_id} permanently deleted.`);
+      router.push("/admin/dashboard");
+      return { success: true };
+    }
+    return res;
+  };
+
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Back + Header */}
@@ -177,18 +192,30 @@ export function OrderDetailClient({
             Placed {formatDate(order.created_at)}
           </p>
         </div>
-        {order.status !== "Cancelled" && order.status !== "Completed" && (
+        <div className="flex items-center gap-2">
+          {order.status !== "Cancelled" && order.status !== "Completed" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowCancelModal(true)}
+              className="text-amber-600 hover:bg-amber-50 border border-amber-200"
+              icon={<XCircle className="h-4 w-4" />}
+              id="cancel-order-btn"
+            >
+              Cancel Order
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setShowCancelModal(true)}
-            className="text-red-500 hover:bg-red-50 border border-red-200"
-            icon={<XCircle className="h-4 w-4" />}
-            id="cancel-order-btn"
+            onClick={() => setShowDeleteModal(true)}
+            className="text-red-600 hover:bg-red-50 border border-red-200"
+            icon={<Trash2 className="h-4 w-4" />}
+            id="delete-order-detail-btn"
           >
-            Cancel
+            Delete Order
           </Button>
-        )}
+        </div>
       </div>
 
       {/* Customer Cancellation Request Banner */}
@@ -644,6 +671,16 @@ export function OrderDetailClient({
           </div>
         </div>
       )}
+
+      {/* Security PIN Delete Modal */}
+      <SecurityPinModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Order"
+        itemIdentifier={`Order #${order.tracking_id} (${order.customer_name})`}
+        description="This will permanently remove this order and all associated quotations and feedback records from the database."
+      />
     </div>
   );
 }

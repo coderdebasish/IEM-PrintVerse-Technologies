@@ -7,10 +7,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
+import { SecurityPinModal } from "@/components/admin/SecurityPinModal";
 import {
   createOfflineDocument,
   convertOfflineToInvoice,
   getOfflineDocUrl,
+  deleteOfflineDocument,
   type OfflineDocFormData,
 } from "./actions";
 import type { OfflineInvoice, QuotationItem, DiscountType, DocType } from "@/types";
@@ -66,6 +68,19 @@ export function OfflineInvoiceBuilder({ initialDocs }: Props) {
   const [loading, setLoading] = useState(false);
   const [fetchingPdf, setFetchingPdf] = useState<string | null>(null);
   const [converting, setConverting] = useState<string | null>(null);
+  const [docToDelete, setDocToDelete] = useState<OfflineInvoice | null>(null);
+
+  // ── delete document ────────────────────────────────────────────────────────
+  const handleDeleteConfirm = async (pin: string) => {
+    if (!docToDelete) return { success: false, error: "No document selected." };
+    const res = await deleteOfflineDocument(docToDelete.id, pin);
+    if (res.success) {
+      setDocs((prev) => prev.filter((d) => d.id !== docToDelete.id));
+      toast.success(`Document ${docToDelete.quotation_number} permanently deleted.`);
+      return { success: true };
+    }
+    return res;
+  };
 
   // ── form state ─────────────────────────────────────────────────────────────
   const [docType, setDocType] = useState<DocType>("quotation");
@@ -421,6 +436,14 @@ export function OfflineInvoiceBuilder({ initialDocs }: Props) {
                               To Invoice
                             </button>
                           )}
+                          <button
+                            onClick={() => setDocToDelete(doc)}
+                            id={`delete-offline-${doc.id}`}
+                            title="Delete Document"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -431,6 +454,16 @@ export function OfflineInvoiceBuilder({ initialDocs }: Props) {
           </div>
         </div>
       )}
+
+      {/* Security PIN Delete Modal */}
+      <SecurityPinModal
+        isOpen={!!docToDelete}
+        onClose={() => setDocToDelete(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Offline Document"
+        itemIdentifier={`Document ${docToDelete?.quotation_number} (${docToDelete?.customer_name})`}
+        description="This will permanently delete this offline quotation/invoice record from the database."
+      />
     </div>
   );
 }
