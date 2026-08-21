@@ -45,7 +45,7 @@ export async function createProduct(formData: FormData) {
     }
   }
 
-  const { error } = await service.from("products").insert({
+  const { data: newProd, error } = await service.from("products").insert({
     name: name.trim(),
     slug: slugify(name),
     description: description?.trim() || null,
@@ -57,12 +57,12 @@ export async function createProduct(formData: FormData) {
     is_available,
     is_coming_soon,
     display_order,
-  });
+  }).select().single();
 
   if (error) return { success: false, error: error.message };
   revalidatePath("/admin/products");
   revalidatePath("/products");
-  return { success: true };
+  return { success: true, product: newProd };
 }
 
 export async function updateProduct(id: string, formData: FormData) {
@@ -112,18 +112,24 @@ export async function updateProduct(id: string, formData: FormData) {
     display_order,
   };
 
-  const { error } = await service.from("products").update(updates).eq("id", id);
+  const { data: updatedProd, error } = await service.from("products").update(updates).eq("id", id).select().single();
   if (error) return { success: false, error: error.message };
   revalidatePath("/admin/products");
   revalidatePath("/products");
-  return { success: true };
+  return { success: true, product: updatedProd };
 }
 
 export async function deleteProduct(id: string) {
   await requireAdmin();
   const service = createServiceClient();
+
+  // 1. Unlink any orders referencing this product to avoid foreign key constraint error
+  await service.from("orders").update({ product_id: null }).eq("product_id", id);
+
+  // 2. Delete product
   const { error } = await service.from("products").delete().eq("id", id);
   if (error) return { success: false, error: error.message };
+
   revalidatePath("/admin/products");
   revalidatePath("/products");
   return { success: true };

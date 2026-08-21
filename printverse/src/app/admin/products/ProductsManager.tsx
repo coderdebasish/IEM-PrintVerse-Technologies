@@ -32,7 +32,7 @@ function ProductForm({
   onCancel,
 }: {
   existing?: Product;
-  onDone: (product: Product) => void;
+  onDone: (product?: Product) => void;
   onCancel: () => void;
 }) {
   const [loading, setLoading] = useState(false);
@@ -123,18 +123,12 @@ function ProductForm({
         ? await updateProduct(existing.id, formData)
         : await createProduct(formData);
 
-      if (res.success) {
+      if (res.success && res.product) {
         toast.success(existing ? "Product updated." : "Product created.");
-        onDone({
-          ...existing,
-          name: formData.get("name") as string,
-          price: parseFloat(formData.get("price") as string),
-          description: formData.get("description") as string,
-          categories: selectedCats,
-          category: selectedCats[0] || "Gift",
-          image_urls: [...existingImages, ...newFiles.map(() => "")], // placeholder for UI
-          image_url: existingImages[0] || null,
-        } as unknown as Product);
+        onDone(res.product as unknown as Product);
+      } else if (res.success) {
+        toast.success(existing ? "Product updated." : "Product created.");
+        onDone();
       } else {
         toast.error(res.error ?? "Failed.");
       }
@@ -303,11 +297,20 @@ export function ProductsManager({ initialProducts }: { initialProducts: Product[
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  const handleFormDone = () => {
+  const handleFormDone = (savedProd?: Product) => {
     setShowForm(false);
     setEditingProduct(null);
-    // Server revalidation handles the actual fresh data on next navigation
-    toast.info("Refresh to see latest changes.");
+    if (savedProd) {
+      setProducts((prev) => {
+        const idx = prev.findIndex((p) => p.id === savedProd.id);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = savedProd;
+          return updated;
+        }
+        return [savedProd, ...prev];
+      });
+    }
   };
 
   const handleToggle = async (product: Product) => {
@@ -330,6 +333,9 @@ export function ProductsManager({ initialProducts }: { initialProducts: Product[
     setDeletingId(null);
     if (res.success) {
       setProducts((prev) => prev.filter((p) => p.id !== id));
+      if (editingProduct?.id === id) {
+        setEditingProduct(null);
+      }
       toast.success("Product deleted.");
     } else {
       toast.error(res.error ?? "Failed to delete.");
