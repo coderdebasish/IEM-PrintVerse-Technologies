@@ -12,14 +12,19 @@ import {
   X,
   Printer,
   ChevronRight,
+  BarChart3,
+  FilePlus,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/admin/offline-invoice", label: "Offline Invoice", icon: FilePlus },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
+
 
 export function AdminSidebar({ userEmail }: { userEmail: string }) {
   const pathname = usePathname();
