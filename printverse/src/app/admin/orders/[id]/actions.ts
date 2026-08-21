@@ -519,6 +519,61 @@ export async function releaseInvoice(
   return { success: true };
 }
 
+/** Manually convert an existing quotation to an Invoice from the admin UI. */
+export async function manualConvertToInvoice(
+  orderId: string
+): Promise<{ success: boolean; quotation?: Quotation; error?: string }> {
+  await requireAdmin();
+  const service = createServiceClient();
+
+  const { data: quotation, error: fetchErr } = await service
+    .from("quotations")
+    .select("*")
+    .eq("order_id", orderId)
+    .maybeSingle();
+
+  if (fetchErr || !quotation)
+    return { success: false, error: "No quotation found for this order." };
+  if ((quotation as Quotation).doc_type === "invoice")
+    return { success: false, error: "Already an invoice." };
+
+  // Build invoice data
+  const invoiceData: Quotation = {
+    ...(quotation as Quotation),
+    doc_type: "invoice",
+    issue_date: new Date().toISOString().split("T")[0],
+  };
+
+  // Generate invoice PDF
+  const { generateDocumentPDF } = await import("@/lib/invoice/generateDocumentPDF");
+  const pdfBuffer = await generateDocumentPDF(invoiceData);
+
+  const invoicePath = `invoices/INV-${(quotation as Quotation).tracking_id}.pdf`;
+  const { error: uploadErr } = await service.storage
+    .from("invoices")
+    .upload(invoicePath, pdfBuffer, { contentType: "application/pdf", upsert: true });
+
+  if (uploadErr)
+    return { success: false, error: "PDF upload failed: " + uploadErr.message };
+
+  const { data: updated, error: updateErr } = await service
+    .from("quotations")
+    .update({
+      doc_type: "invoice",
+      invoice_pdf_path: invoicePath,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", (quotation as Quotation).id)
+    .select()
+    .single();
+
+  if (updateErr || !updated)
+    return { success: false, error: updateErr?.message ?? "Update failed." };
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  return { success: true, quotation: updated as Quotation };
+}
+
 // ─── Feedback System Actions ──────────────────────────────────────────────────
 
 export async function sendFeedbackRequest(

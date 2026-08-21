@@ -11,12 +11,14 @@ import {
   ChevronDown,
   ChevronUp,
   Send,
+  Receipt,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import {
   createQuotation,
   updateQuotation,
+  manualConvertToInvoice,
   type QuotationFormData,
 } from "./actions";
 import type { Order, Quotation, QuotationItem, DiscountType } from "@/types";
@@ -116,8 +118,9 @@ export function QuotationBuilder({
   const [items, setItems] = useState<QuotationItem[]>([emptyItem()]);
   const [discountType, setDiscountType] = useState<DiscountType>("none");
   const [discountValue, setDiscountValue] = useState(0);
+  const [convertingToInvoice, setConvertingToInvoice] = useState(false);
   const [notes, setNotes] = useState(
-    "Payment via Razorpay link shared separately.\nPrices valid until the date mentioned above.\nAll prints are subject to material availability."
+    "1. All prices are inclusive of material and printing charges only. Delivery charges are billed separately.\n2. This quotation is valid until the date mentioned above. After expiry, prices may be revised.\n3. Orders are confirmed only after receipt of full payment.\n4. Customisation changes after order confirmation may attract additional charges.\n5. PrintVerse Technologies is not liable for design errors submitted by the customer."
   );
 
   // Populate form when editing existing quotation
@@ -330,6 +333,33 @@ export function QuotationBuilder({
               id="edit-quotation-btn"
             >
               Edit
+            </Button>
+          )}
+          {/* ── Convert to Invoice button ──────────────────────────── */}
+          {!isLocked && (
+            <Button
+              variant="primary"
+              size="sm"
+              loading={convertingToInvoice}
+              icon={<Receipt className="h-3.5 w-3.5" />}
+              id="convert-to-invoice-btn"
+              onClick={async () => {
+                if (!confirm("Convert this quotation to a final invoice? This cannot be undone.")) return;
+                setConvertingToInvoice(true);
+                try {
+                  const res = await manualConvertToInvoice(order.id);
+                  if (res.success && res.quotation) {
+                    setQuotation(res.quotation);
+                    toast.success("Quotation converted to Invoice successfully.");
+                  } else {
+                    toast.error(res.error ?? "Conversion failed.");
+                  }
+                } finally {
+                  setConvertingToInvoice(false);
+                }
+              }}
+            >
+              Convert to Invoice
             </Button>
           )}
         </div>
