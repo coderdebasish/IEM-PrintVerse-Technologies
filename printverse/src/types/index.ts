@@ -153,3 +153,30 @@ export interface Quotation {
   created_at: string;
   updated_at: string;
 }
+
+// ─── Offline / Walk-in Customer Document ─────────────────────────────────────
+
+export interface OfflineInvoice {
+  id: string;
+  tracking_id: string;         // 6-digit number, same format as orders
+  doc_type: DocType;           // "quotation" or "invoice"
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  customer_address: string | null;
+  quotation_number: string;    // QT-XXXXXX or INV-XXXXXX
+  issue_date: string;
+  valid_until: string | null;
+  items: QuotationItem[];
+  subtotal: number;
+  discount_type: DiscountType;
+  discount_value: number;
+  discount_amount: number;
+  total: number;
+  notes: string | null;
+  quotation_pdf_path: string | null;
+  invoice_pdf_path: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
