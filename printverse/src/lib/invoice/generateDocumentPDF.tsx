@@ -567,7 +567,9 @@ export async function generateDocumentPDF(quotation: Quotation): Promise<Buffer>
             PrintVerse Technologies · IIFR Lab, IEM Kolkata · India
           </Text>
           <Text style={styles.footerRight}>
-            {docNumber} · Tracking #{quotation.tracking_id}
+            {quotation.order_id === "offline"
+              ? docNumber
+              : `${docNumber} · Tracking #${quotation.tracking_id}`}
           </Text>
         </View>
       </Page>
